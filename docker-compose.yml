@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # Database Service: PostgreSQL 16 with PostGIS 3.4
+  # ----------------------------------------------------------------------------
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: agrinexus_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agrinexus_db}
+      POSTGRES_USER: ${POSTGRES_USER:-agrinexus_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agrinexus_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agrinexus_user} -d ${POSTGRES_DB:-agrinexus_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - agrinexus_network
+
+  # ----------------------------------------------------------------------------
+  # Backend API Service: FastAPI + SQLAlchemy + PostGIS Support
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agrinexus_backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - PROJECT_NAME=AgriNexus AI
+      - API_V1_STR=/api/v1
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-agrinexus_db}
+      - POSTGRES_USER=${POSTGRES_USER:-agrinexus_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-agrinexus_password}
+      - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173","http://127.0.0.1:3000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - agrinexus_network
+
+  # ----------------------------------------------------------------------------
+  # Frontend Service: React + Vite + TypeScript + Tailwind CSS
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: agrinexus_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - agrinexus_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  agrinexus_network:
+    driver: bridge

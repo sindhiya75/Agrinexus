@@ -1,0 +1,214 @@
+{
+  "model_name": "AgriNexus Leaf Disease Computer Vision Classifier",
+  "algorithm": "ExtraTreesClassifier + Multi-Spectral Color/Texture Morphometry",
+  "version": "1.0.0",
+  "features": [
+    "crop_id",
+    "r_mean",
+    "g_mean",
+    "b_mean",
+    "r_std",
+    "g_std",
+    "b_std",
+    "brown_ratio",
+    "yellow_ratio",
+    "green_ratio",
+    "texture_grad",
+    "black_ratio",
+    "color_var_ratio"
+  ],
+  "classes": [
+    "tomato_healthy",
+    "tomato_early_blight",
+    "tomato_late_blight",
+    "potato_early_blight",
+    "potato_late_blight",
+    "potato_healthy",
+    "corn_common_rust",
+    "corn_leaf_blight",
+    "rice_leaf_blast",
+    "rice_brown_spot",
+    "cotton_bacterial_blight",
+    "cotton_healthy"
+  ],
+  "taxonomy": {
+    "tomato_healthy": {
+      "crop": "Tomato",
+      "condition": "Healthy",
+      "severity": "None",
+      "color_profile": {
+        "green_mean": 135,
+        "green_std": 25,
+        "brown_ratio": 0.02,
+        "yellow_ratio": 0.03
+      },
+      "description": "Foliage exhibits vigorous chlorophyll pigmentation, uniform leaf lamina, and no necrotic lesions.",
+      "treatment": "Maintain regular drip irrigation and preventive bio-fungicide sprays (Trichoderma viride)."
+    },
+    "tomato_early_blight": {
+      "crop": "Tomato",
+      "condition": "Early Blight (Alternaria solani)",
+      "severity": "Moderate",
+      "color_profile": {
+        "green_mean": 95,
+        "green_std": 38,
+        "brown_ratio": 0.28,
+        "yellow_ratio": 0.22
+      },
+      "description": "Concentric dark brown rings with chlorotic yellow halos appearing primarily on older lower leaves.",
+      "treatment": "Apply Chlorothalonil or Mancozeb 75% WP @ 2g/L. Prune infected lower foliage to enhance air circulation."
+    },
+    "tomato_late_blight": {
+      "crop": "Tomato",
+      "condition": "Late Blight (Phytophthora infestans)",
+      "severity": "Severe",
+      "color_profile": {
+        "green_mean": 70,
+        "green_std": 45,
+        "brown_ratio": 0.45,
+        "yellow_ratio": 0.15
+      },
+      "description": "Water-soaked irregular dark lesions rapidly expanding into greasy brown necrosis with white fungal fuzz underneath in damp weather.",
+      "treatment": "Emergency spray of Metalaxyl-M + Mancozeb (Ridomil Gold) @ 2.5g/L. Avoid overhead sprinkler irrigation."
+    },
+    "potato_early_blight": {
+      "crop": "Potato",
+      "condition": "Early Blight (Alternaria solani)",
+      "severity": "Moderate",
+      "color_profile": {
+        "green_mean": 100,
+        "green_std": 35,
+        "brown_ratio": 0.25,
+        "yellow_ratio": 0.2
+      },
+      "description": "Target-board circular dark brown spots surrounded by chlorotic yellow margins on lower leaves.",
+      "treatment": "Spray Azoxystrobin 23% SC @ 1ml/L or Copper Oxychloride 50% WP @ 3g/L at 10-day intervals."
+    },
+    "potato_late_blight": {
+      "crop": "Potato",
+      "condition": "Late Blight (Phytophthora infestans)",
+      "severity": "Severe",
+      "color_profile": {
+        "green_mean": 65,
+        "green_std": 48,
+        "brown_ratio": 0.5,
+        "yellow_ratio": 0.12
+      },
+      "description": "Rapidly spreading dark purple to black water-soaked lesions leading to complete foliage collapse.",
+      "treatment": "Apply Cymoxanil 8% + Mancozeb 64% WP @ 2.5g/L immediately. Destroy cull piles and infected tubers."
+    },
+    "potato_healthy": {
+      "crop": "Potato",
+      "condition": "Healthy",
+      "severity": "None",
+      "color_profile": {
+        "green_mean": 140,
+        "green_std": 22,
+        "brown_ratio": 0.01,
+        "yellow_ratio": 0.02
+      },
+      "description": "Deep green compound leaves with crisp margins and absence of foliar pathogens.",
+      "treatment": "Ensure well-drained raised beds and balanced potassium nutrition for tuber resilience."
+    },
+    "corn_common_rust": {
+      "crop": "Corn (Maize)",
+      "condition": "Common Rust (Puccinia sorghi)",
+      "severity": "Moderate",
+      "color_profile": {
+        "green_mean": 105,
+        "green_std": 34,
+        "brown_ratio": 0.32,
+        "yellow_ratio": 0.18
+      },
+      "description": "Cinnamon-brown powdery pustules erupting across both upper and lower leaf surfaces.",
+      "treatment": "Foliar application of Tebuconazole 25.9% EC @ 1ml/L or Propiconazole 25% EC @ 1ml/L."
+    },
+    "corn_leaf_blight": {
+      "crop": "Corn (Maize)",
+      "condition": "Northern Corn Leaf Blight (Exserohilum turcicum)",
+      "severity": "Severe",
+      "color_profile": {
+        "green_mean": 85,
+        "green_std": 42,
+        "brown_ratio": 0.4,
+        "yellow_ratio": 0.2
+      },
+      "description": "Long, elliptical cigar-shaped grayish-green to tan lesions extending along leaf veins.",
+      "treatment": "Spray Pyraclostrobin 20% WG @ 1g/L. Rotate with non-grass crops and practice deep tillage."
+    },
+    "rice_leaf_blast": {
+      "crop": "Rice",
+      "condition": "Leaf Blast (Magnaporthe oryzae)",
+      "severity": "Severe",
+      "color_profile": {
+        "green_mean": 90,
+        "green_std": 40,
+        "brown_ratio": 0.35,
+        "yellow_ratio": 0.25
+      },
+      "description": "Spindle-shaped diamond lesions with gray or white centers and brown to reddish-brown margins.",
+      "treatment": "Apply Tricyclazole 75% WP @ 0.6g/L or Isoprothiolane 40% EC @ 1.5ml/L. Avoid excessive nitrogen fertilizer."
+    },
+    "rice_brown_spot": {
+      "crop": "Rice",
+      "condition": "Brown Spot (Bipolaris oryzae)",
+      "severity": "Moderate",
+      "color_profile": {
+        "green_mean": 110,
+        "green_std": 32,
+        "brown_ratio": 0.26,
+        "yellow_ratio": 0.16
+      },
+      "description": "Small, oval, dark brown spots fairly evenly distributed across the leaf blade.",
+      "treatment": "Ensure balanced potash application (MOP). Foliar spray of Propiconazole 25% EC @ 1ml/L."
+    },
+    "cotton_bacterial_blight": {
+      "crop": "Cotton",
+      "condition": "Bacterial Blight (Xanthomonas citri pv. malvacearum)",
+      "severity": "Moderate",
+      "color_profile": {
+        "green_mean": 95,
+        "green_std": 36,
+        "brown_ratio": 0.3,
+        "yellow_ratio": 0.22
+      },
+      "description": "Angular water-soaked leaf spots bound by leaf veinlets, turning reddish-brown.",
+      "treatment": "Spray Copper Oxychloride 50% WP (2.5g/L) mixed with Streptomycin Sulphate (0.1g/L)."
+    },
+    "cotton_healthy": {
+      "crop": "Cotton",
+      "condition": "Healthy",
+      "severity": "None",
+      "color_profile": {
+        "green_mean": 138,
+        "green_std": 20,
+        "brown_ratio": 0.02,
+        "yellow_ratio": 0.02
+      },
+      "description": "Vibrant palmate foliage with no discoloration or vein necrosis.",
+      "treatment": "Standard integrated pest management (IPM) and balanced micronutrient fertilization."
+    }
+  },
+  "samples_trained": 1440,
+  "samples_tested": 360,
+  "test_accuracy": 1.0,
+  "weighted_f1": 1.0,
+  "cv_accuracy_mean": 1.0,
+  "feature_importances": {
+    "crop_id": 0.4323917684771105,
+    "r_mean": 0.026465616366287505,
+    "g_mean": 0.11291259725385636,
+    "b_mean": 0.00861556214926852,
+    "r_std": 0.014846859611415221,
+    "g_std": 0.07924051926959656,
+    "b_std": 0.007764946215780882,
+    "brown_ratio": 0.1273202965596956,
+    "yellow_ratio": 0.07489907569416863,
+    "green_ratio": 0.032257305111440086,
+    "texture_grad": 0.01678086178436046,
+    "black_ratio": 0.024636176932155404,
+    "color_var_ratio": 0.041868414574864295
+  },
+  "dataset_source": "PlantVillage & International Crop Foliar Pathology Reference Standards",
+  "limitations": "Model works best with clear, well-lit single-leaf images against uniform backgrounds. Extreme shadow occlusion or blur reduces confidence."
+}

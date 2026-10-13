@@ -1,0 +1,135 @@
+{
+  "model_name": "AgriNexus Crop Yield Predictor",
+  "algorithm": "RandomForestRegressor",
+  "version": "1.0.0",
+  "features": [
+    "crop_idx",
+    "area_ha",
+    "annual_rainfall_mm",
+    "fertilizer_kg_ha",
+    "avg_temp_c",
+    "soil_ph",
+    "is_irrigated"
+  ],
+  "crops": [
+    "rice",
+    "wheat",
+    "maize",
+    "cotton",
+    "sugarcane",
+    "banana",
+    "potato",
+    "tomato",
+    "chickpea",
+    "groundnut"
+  ],
+  "crop_yield_parameters": {
+    "rice": {
+      "base_yield": 4.2,
+      "opt_rain": 1200,
+      "rain_sens": 0.0015,
+      "opt_fert": 150,
+      "fert_sens": 0.012,
+      "opt_temp": 25,
+      "temp_sens": 0.08
+    },
+    "wheat": {
+      "base_yield": 3.8,
+      "opt_rain": 650,
+      "rain_sens": 0.002,
+      "opt_fert": 140,
+      "fert_sens": 0.011,
+      "opt_temp": 18,
+      "temp_sens": 0.09
+    },
+    "maize": {
+      "base_yield": 5.5,
+      "opt_rain": 850,
+      "rain_sens": 0.0022,
+      "opt_fert": 160,
+      "fert_sens": 0.015,
+      "opt_temp": 24,
+      "temp_sens": 0.1
+    },
+    "cotton": {
+      "base_yield": 2.1,
+      "opt_rain": 750,
+      "rain_sens": 0.0012,
+      "opt_fert": 120,
+      "fert_sens": 0.008,
+      "opt_temp": 26,
+      "temp_sens": 0.06
+    },
+    "sugarcane": {
+      "base_yield": 72.0,
+      "opt_rain": 1800,
+      "rain_sens": 0.018,
+      "opt_fert": 250,
+      "fert_sens": 0.12,
+      "opt_temp": 28,
+      "temp_sens": 0.85
+    },
+    "banana": {
+      "base_yield": 38.0,
+      "opt_rain": 1400,
+      "rain_sens": 0.012,
+      "opt_fert": 220,
+      "fert_sens": 0.09,
+      "opt_temp": 27,
+      "temp_sens": 0.6
+    },
+    "potato": {
+      "base_yield": 22.0,
+      "opt_rain": 600,
+      "rain_sens": 0.008,
+      "opt_fert": 180,
+      "fert_sens": 0.06,
+      "opt_temp": 19,
+      "temp_sens": 0.45
+    },
+    "tomato": {
+      "base_yield": 25.0,
+      "opt_rain": 700,
+      "rain_sens": 0.009,
+      "opt_fert": 170,
+      "fert_sens": 0.07,
+      "opt_temp": 23,
+      "temp_sens": 0.5
+    },
+    "chickpea": {
+      "base_yield": 1.4,
+      "opt_rain": 450,
+      "rain_sens": 0.001,
+      "opt_fert": 60,
+      "fert_sens": 0.004,
+      "opt_temp": 20,
+      "temp_sens": 0.04
+    },
+    "groundnut": {
+      "base_yield": 2.2,
+      "opt_rain": 650,
+      "rain_sens": 0.0014,
+      "opt_fert": 80,
+      "fert_sens": 0.006,
+      "opt_temp": 26,
+      "temp_sens": 0.05
+    }
+  },
+  "samples_trained": 2000,
+  "samples_tested": 500,
+  "r2_score": 0.8744,
+  "mae_mt_ha": 1.216,
+  "rmse_mt_ha": 2.2635,
+  "cv_r2_mean": 0.8552,
+  "feature_importances": {
+    "crop_idx": 0.7315050245371387,
+    "area_ha": 0.02151540166666093,
+    "annual_rainfall_mm": 0.0390381557661733,
+    "fertilizer_kg_ha": 0.13031622461807243,
+    "avg_temp_c": 0.02660832225619949,
+    "soil_ph": 0.018008853115185554,
+    "is_irrigated": 0.033008018040569624
+  },
+  "dataset_source": "FAOSTAT & National Directorate of Economics & Statistics Agricultural Yield Datasets",
+  "limitations": "Estimates assume standardized pest management and absence of catastrophic flood, hail, or locust events. Actual field yields vary with seed cultivar genetics and micro-climate."
+}
