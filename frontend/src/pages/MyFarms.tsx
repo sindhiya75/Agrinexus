@@ -36,6 +36,7 @@ import {
   Loader2,
   AlertCircle,
   LogIn,
+  X
 } from 'lucide-react';
 
 export const MyFarms: React.FC = () => {
@@ -288,7 +289,7 @@ export const MyFarms: React.FC = () => {
   };
 
   const handleDeleteCrop = async (cropId: string) => {
-    if (!confirm('Are you sure you want to remove this crop record?')) return;
+    if (!confirm('Are you sure you want to delete this crop record?')) return;
     if (!selectedFarm) return;
     setLoading(true);
     try {
@@ -304,31 +305,26 @@ export const MyFarms: React.FC = () => {
   // If unauthenticated, show prompt
   if (!isAuthenticated) {
     return (
-      <div className="space-y-6 max-w-5xl">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-2">
-              <Tractor className="w-3.5 h-3.5" /> Phase 1 Data Layer
-            </div>
-            <h1 className="text-2xl font-bold text-white">My Farms & Plots</h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Authenticate to register and manage your farm holdings, field boundaries, and crop allocations.
-            </p>
-          </div>
+      <div className="space-y-5 max-w-4xl pb-12 font-sans">
+        <div className="pb-1">
+          <h2 className="text-xl font-bold text-neutral-900 tracking-tight">My Farms</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Register and manage your farm holdings, field boundaries, and crop allocations.
+          </p>
         </div>
 
-        <div className="p-8 sm:p-12 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 text-center flex flex-col items-center justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4 shadow-lg shadow-emerald-500/10">
+        <div className="p-8 sm:p-12 rounded-3xl bg-white border border-cream-200 text-center flex flex-col items-center justify-center shadow-soft">
+          <div className="w-16 h-16 rounded-3xl bg-forest-50 border border-forest-200 flex items-center justify-center text-forest-700 mb-4 shadow-sm">
             <Tractor className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold text-white">Sign In to Manage Your Farms</h2>
-          <p className="text-sm text-slate-400 max-w-md mt-2 leading-relaxed">
+          <h2 className="text-xl font-bold text-earth-900">Sign In to Manage Your Farms</h2>
+          <p className="text-sm text-earth-500 max-w-md mt-2 leading-relaxed">
             AgriNexus AI uses strict user data isolation. Sign in or create a free farmer account to start adding farm plots, sub-fields, and planted crops.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
+              className="px-5 py-2.5 bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs rounded-xl shadow-md shadow-forest-900/10 flex items-center gap-2 transition-all"
             >
               <LogIn className="w-4 h-4" />
               Sign In / Register
@@ -346,61 +342,56 @@ export const MyFarms: React.FC = () => {
   // ---------------------------------------------------------------------------
   if (selectedFarm) {
     return (
-      <div className="space-y-6 max-w-6xl pb-12 animate-fadeIn">
+      <div className="space-y-6 max-w-6xl pb-12 animate-fadeIn font-sans">
         {/* Back Button and Farm Banner */}
         <button
           onClick={() => setSelectedFarm(null)}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-bold text-forest-700 hover:text-forest-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to All Farms
         </button>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold font-mono">
-                {selectedFarm.total_area_hectares ? `${selectedFarm.total_area_hectares} Hectares` : 'Area Not Specified'}
+              <span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 text-xs font-medium font-mono">
+                {selectedFarm.total_area_hectares ? `${selectedFarm.total_area_hectares} ha` : 'No area defined'}
               </span>
               {selectedFarm.location_name && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs text-neutral-500 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-neutral-400" />
                   {selectedFarm.location_name}
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-bold text-white mt-2">{selectedFarm.name}</h1>
+            <h2 className="text-xl font-bold text-neutral-900 mt-1.5 tracking-tight">{selectedFarm.name}</h2>
             {selectedFarm.description && (
-              <p className="text-slate-400 text-xs mt-1 max-w-2xl">{selectedFarm.description}</p>
-            )}
-            {selectedFarm.latitude && selectedFarm.longitude && (
-              <p className="text-[11px] text-slate-400 font-mono mt-1">
-                GPS: {selectedFarm.latitude.toFixed(4)}° N, {selectedFarm.longitude.toFixed(4)}° E
-              </p>
+              <p className="text-neutral-600 text-xs mt-1 max-w-xl">{selectedFarm.description}</p>
             )}
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleOpenCreateField}
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
             >
               <Plus className="w-4 h-4" />
               Add Field / Plot
             </button>
             <button
               onClick={(e) => handleOpenEditFarm(selectedFarm, e)}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 transition-all"
+              className="px-3.5 py-2 bg-cream-100 hover:bg-cream-200 text-earth-800 text-xs font-semibold rounded-xl border border-cream-300 flex items-center gap-1.5 transition-all"
             >
-              <Edit3 className="w-3.5 h-3.5" />
+              <Edit3 className="w-3.5 h-3.5 text-forest-700" />
               Edit Farm
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             <span>{error}</span>
           </div>
         )}
@@ -408,8 +399,8 @@ export const MyFarms: React.FC = () => {
         {/* Fields List */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-base font-bold text-earth-900 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-forest-700" />
               Sub-Fields & Plots ({selectedFarm.fields?.length || 0})
             </h2>
           </div>
@@ -419,20 +410,20 @@ export const MyFarms: React.FC = () => {
               {selectedFarm.fields.map((field) => (
                 <div
                   key={field.id}
-                  className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between"
+                  className="bg-white border border-cream-200 rounded-3xl p-6 flex flex-col justify-between shadow-soft hover:shadow-card transition-all"
                 >
                   <div>
                     {/* Field Header */}
                     <div className="flex items-start justify-between">
                       <div>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-forest-50 text-forest-800 border border-forest-200">
                           {field.field_type || 'open_field'}
                         </span>
-                        <h3 className="text-base font-bold text-white mt-2">{field.name}</h3>
+                        <h3 className="text-base font-bold text-earth-900 mt-2">{field.name}</h3>
                       </div>
                       <button
                         onClick={() => handleDeleteField(field.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                        className="p-1.5 rounded-lg text-earth-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                         title="Delete Field"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -440,28 +431,28 @@ export const MyFarms: React.FC = () => {
                     </div>
 
                     {/* Field Metrics */}
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs py-2 px-3 rounded-xl bg-slate-950 border border-slate-800/80">
+                    <div className="mt-3.5 grid grid-cols-2 gap-2 text-xs py-2 px-3 rounded-2xl bg-cream-50 border border-cream-200">
                       <div>
-                        <span className="text-slate-400 block text-[11px]">Area</span>
-                        <span className="font-semibold text-slate-200">
+                        <span className="text-earth-500 block text-[11px] font-semibold">Area</span>
+                        <span className="font-bold text-earth-900">
                           {field.area_hectares ? `${field.area_hectares} ha` : 'N/A'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[11px]">Soil Type</span>
-                        <span className="font-semibold text-slate-200">{field.soil_type || 'Unspecified'}</span>
+                        <span className="text-earth-500 block text-[11px] font-semibold">Soil Type</span>
+                        <span className="font-bold text-earth-900">{field.soil_type || 'Unspecified'}</span>
                       </div>
                     </div>
 
                     {/* Planted Crops in this Field */}
                     <div className="mt-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                          <Sprout className="w-3.5 h-3.5 text-emerald-400" /> Planted Crops
+                        <span className="text-xs font-bold text-earth-800 flex items-center gap-1.5">
+                          <Sprout className="w-3.5 h-3.5 text-forest-700" /> Planted Crops
                         </span>
                         <button
                           onClick={() => handleOpenAddCrop(field)}
-                          className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                          className="text-[11px] font-bold text-forest-700 hover:text-forest-900 flex items-center gap-1 transition-colors"
                         >
                           <Plus className="w-3 h-3" /> Plant Crop
                         </button>
@@ -472,28 +463,28 @@ export const MyFarms: React.FC = () => {
                           {field.crops.map((crop) => (
                             <div
                               key={crop.id}
-                              className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between"
+                              className="p-3 rounded-2xl bg-cream-50/80 border border-cream-200 flex items-center justify-between"
                             >
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-xs text-white">{crop.name}</span>
+                                  <span className="font-bold text-xs text-earth-900">{crop.name}</span>
                                   {crop.variety && (
-                                    <span className="text-[10px] text-slate-400 font-mono">({crop.variety})</span>
+                                    <span className="text-[10px] text-earth-500 font-mono">({crop.variety})</span>
                                   )}
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
                                     crop.status === 'harvested'
-                                      ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                      ? 'bg-purple-50 text-purple-800 border border-purple-200'
                                       : crop.status === 'flowering'
-                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                      : 'bg-forest-50 text-forest-800 border border-forest-200'
                                   }`}>
                                     {crop.status}
                                   </span>
                                 </div>
-                                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-3">
+                                <div className="text-[11px] text-earth-500 mt-1 flex items-center gap-3">
                                   {crop.planting_date && (
                                     <span className="flex items-center gap-1">
-                                      <Calendar className="w-3 h-3" /> Planted: {crop.planting_date}
+                                      <Calendar className="w-3 h-3 text-earth-400" /> Planted: {crop.planting_date}
                                     </span>
                                   )}
                                   {crop.expected_harvest_date && (
@@ -505,14 +496,14 @@ export const MyFarms: React.FC = () => {
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleOpenEditCrop(field, crop)}
-                                  className="p-1 text-slate-400 hover:text-slate-200"
+                                  className="p-1 text-earth-400 hover:text-earth-900 transition-colors"
                                   title="Edit Crop"
                                 >
                                   <Edit3 className="w-3 h-3" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteCrop(crop.id)}
-                                  className="p-1 text-slate-400 hover:text-rose-400"
+                                  className="p-1 text-earth-400 hover:text-rose-600 transition-colors"
                                   title="Delete Crop"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -522,7 +513,7 @@ export const MyFarms: React.FC = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className="p-4 rounded-xl bg-slate-950/40 border border-dashed border-slate-800 text-center text-xs text-slate-400">
+                        <div className="p-4 rounded-2xl bg-cream-50/50 border border-dashed border-cream-300 text-center text-xs text-earth-500">
                           No crops recorded in this field. Click "Plant Crop" to add one.
                         </div>
                       )}
@@ -532,15 +523,15 @@ export const MyFarms: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="p-10 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center flex flex-col items-center">
-              <Layers className="w-8 h-8 text-slate-400 mb-2" />
-              <h3 className="font-semibold text-white text-sm">No Fields Defined Yet</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm">
+            <div className="p-10 rounded-3xl bg-white border border-dashed border-cream-300 text-center flex flex-col items-center shadow-soft">
+              <Layers className="w-8 h-8 text-earth-400 mb-2" />
+              <h3 className="font-bold text-earth-900 text-sm">No Fields Defined Yet</h3>
+              <p className="text-xs text-earth-500 mt-1 max-w-sm">
                 Divide this farm into parcels or sub-fields (e.g. North Plot, Greenhouse 1) to track soil and crop rotations.
               </p>
               <button
                 onClick={handleOpenCreateField}
-                className="mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20"
+                className="mt-4 px-4 py-2 bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
               >
                 <Plus className="w-4 h-4" /> Add First Field
               </button>
@@ -562,39 +553,36 @@ export const MyFarms: React.FC = () => {
   // View: All Farms Grid
   // ---------------------------------------------------------------------------
   return (
-    <div className="space-y-6 max-w-6xl pb-12 animate-fadeIn">
+    <div className="space-y-5 max-w-6xl pb-12 font-sans">
       {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
         <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-2">
-            <Tractor className="w-3.5 h-3.5" /> Phase 1 Data Layer
-          </div>
-          <h1 className="text-2xl font-bold text-white">My Farms & Land Holdings</h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <h2 className="text-xl font-bold text-neutral-900 tracking-tight">My Farms</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
             Registered properties for {user?.full_name || user?.email}
           </p>
         </div>
 
         <button
           onClick={handleOpenCreateFarm}
-          className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
+          className="px-3.5 py-2 bg-forest-700 hover:bg-forest-800 text-white font-medium text-xs rounded-lg flex items-center gap-1.5 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Add New Farm
+          <span>Add Farm</span>
         </button>
       </div>
 
       {error && (
-        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
           <span>{error}</span>
         </div>
       )}
 
       {loading && farms.length === 0 ? (
         <div className="p-12 text-center flex flex-col items-center justify-center">
-          <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-3" />
-          <p className="text-xs text-slate-400">Loading your farms from PostgreSQL...</p>
+          <Loader2 className="w-8 h-8 text-forest-600 animate-spin mb-3" />
+          <p className="text-xs text-earth-500">Loading your farms from PostgreSQL...</p>
         </div>
       ) : farms.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -602,24 +590,24 @@ export const MyFarms: React.FC = () => {
             <div
               key={farm.id}
               onClick={() => loadFarmDetail(farm.id)}
-              className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-5 cursor-pointer transition-all hover:shadow-xl hover:shadow-emerald-500/5 group flex flex-col justify-between"
+              className="bg-white hover:bg-cream-50/50 border border-cream-200 hover:border-forest-300 rounded-3xl p-6 cursor-pointer transition-all hover:shadow-card group flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-forest-50 text-forest-800 border border-forest-200 font-mono">
                     {farm.total_area_hectares ? `${farm.total_area_hectares} ha` : 'Unspecified'}
                   </span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => handleOpenEditFarm(farm, e)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                      className="p-1.5 rounded-lg text-earth-400 hover:text-earth-900 hover:bg-cream-100 transition-colors"
                       title="Edit Farm"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => handleDeleteFarm(farm.id, e)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"
+                      className="p-1.5 rounded-lg text-earth-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                       title="Delete Farm"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -627,28 +615,28 @@ export const MyFarms: React.FC = () => {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-white mt-3 group-hover:text-emerald-400 transition-colors">
+                <h3 className="text-lg font-bold text-earth-900 mt-3 group-hover:text-forest-800 transition-colors">
                   {farm.name}
                 </h3>
                 {farm.location_name && (
-                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <p className="text-xs text-earth-500 mt-1 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-forest-600 shrink-0" />
                     {farm.location_name}
                   </p>
                 )}
                 {farm.description && (
-                  <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-earth-600 mt-2 line-clamp-2 leading-relaxed">
                     {farm.description}
                   </p>
                 )}
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1 font-medium">
-                  <Layers className="w-3.5 h-3.5 text-sky-400" />
+              <div className="mt-5 pt-3.5 border-t border-cream-200 flex items-center justify-between text-xs text-earth-500">
+                <span className="flex items-center gap-1 font-semibold text-earth-700">
+                  <Layers className="w-3.5 h-3.5 text-forest-600" />
                   {farm.field_count || 0} Sub-Fields
                 </span>
-                <span className="text-emerald-400 font-semibold flex items-center gap-1 text-[11px] group-hover:translate-x-0.5 transition-transform">
+                <span className="text-forest-700 font-bold flex items-center gap-1 text-[11px] group-hover:translate-x-0.5 transition-transform">
                   View Fields & Crops <ChevronRight className="w-3 h-3" />
                 </span>
               </div>
@@ -656,15 +644,15 @@ export const MyFarms: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="p-12 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center flex flex-col items-center">
-          <Tractor className="w-12 h-12 text-slate-400 mb-3" />
-          <h3 className="text-base font-bold text-white">No Farms Registered Yet</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm">
+        <div className="p-12 rounded-3xl bg-white border border-dashed border-cream-300 text-center flex flex-col items-center shadow-soft">
+          <Tractor className="w-12 h-12 text-earth-400 mb-3" />
+          <h3 className="text-base font-bold text-earth-900">No Farms Registered Yet</h3>
+          <p className="text-xs text-earth-500 mt-1 max-w-sm">
             Get started by adding your first agricultural property or field parcel.
           </p>
           <button
             onClick={handleOpenCreateFarm}
-            className="mt-5 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
+            className="mt-5 px-5 py-2.5 bg-forest-700 hover:bg-forest-800 text-white font-bold text-xs rounded-xl shadow-md shadow-forest-900/10 flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" /> Add Your First Farm
           </button>
@@ -682,41 +670,47 @@ export const MyFarms: React.FC = () => {
   function renderFarmModal() {
     if (!farmModalOpen) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-        <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
-          <h3 className="text-lg font-bold text-white mb-1">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0a1c15]/60 backdrop-blur-sm animate-fadeIn">
+        <div className="relative w-full max-w-lg bg-white border border-cream-300 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <button
+            onClick={() => setFarmModalOpen(false)}
+            className="absolute top-5 right-5 p-2 rounded-xl text-earth-400 hover:text-earth-900 hover:bg-cream-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <h3 className="text-lg font-bold text-earth-900 mb-1">
             {editingFarm ? 'Edit Farm Details' : 'Add New Farm Property'}
           </h3>
-          <p className="text-xs text-slate-400 mb-5">
+          <p className="text-xs text-earth-500 mb-5">
             Configure land property name, location, and total acreage.
           </p>
 
           <form onSubmit={handleSaveFarm} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Farm Name *</label>
+              <label className="block text-xs font-semibold text-earth-700 mb-1.5">Farm Name *</label>
               <input
                 type="text"
                 required
                 placeholder="Green Valley Agro Farm"
                 value={farmName}
                 onChange={(e) => setFarmName(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Location Name</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Location Name</label>
                 <input
                   type="text"
                   placeholder="Coimbatore, TN"
                   value={farmLocation}
                   onChange={(e) => setFarmLocation(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Total Area (Hectares)</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Total Area (Hectares)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -724,44 +718,44 @@ export const MyFarms: React.FC = () => {
                   placeholder="12.5"
                   value={farmArea}
                   onChange={(e) => setFarmArea(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Latitude (GPS)</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Latitude (GPS)</label>
                 <input
                   type="number"
                   step="0.0001"
                   placeholder="11.0168"
                   value={farmLat}
                   onChange={(e) => setFarmLat(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600 font-mono"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Longitude (GPS)</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Longitude (GPS)</label>
                 <input
                   type="number"
                   step="0.0001"
                   placeholder="76.9558"
                   value={farmLng}
                   onChange={(e) => setFarmLng(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600 font-mono"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Description / Notes</label>
+              <label className="block text-xs font-semibold text-earth-700 mb-1.5">Description / Notes</label>
               <textarea
                 rows={2}
                 placeholder="Organic paddy farm with drip irrigation infrastructure."
                 value={farmDesc}
                 onChange={(e) => setFarmDesc(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
               />
             </div>
 
@@ -769,14 +763,14 @@ export const MyFarms: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setFarmModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl"
+                className="px-4 py-2 bg-cream-100 hover:bg-cream-200 text-earth-800 text-xs font-bold rounded-xl border border-cream-300"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                className="px-5 py-2 bg-forest-700 hover:bg-forest-800 text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Saving...' : editingFarm ? 'Update Farm' : 'Create Farm'}
               </button>
@@ -790,31 +784,37 @@ export const MyFarms: React.FC = () => {
   function renderFieldModal() {
     if (!fieldModalOpen) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-        <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-          <h3 className="text-lg font-bold text-white mb-1">Add Sub-Field / Plot</h3>
-          <p className="text-xs text-slate-400 mb-4">Adding plot to: {selectedFarm?.name}</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0a1c15]/60 backdrop-blur-sm animate-fadeIn">
+        <div className="relative w-full max-w-md bg-white border border-cream-300 rounded-3xl p-6 shadow-2xl">
+          <button
+            onClick={() => setFieldModalOpen(false)}
+            className="absolute top-5 right-5 p-2 rounded-xl text-earth-400 hover:text-earth-900 hover:bg-cream-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <h3 className="text-lg font-bold text-earth-900 mb-1">Add Sub-Field / Plot</h3>
+          <p className="text-xs text-earth-500 mb-4">Adding plot to: {selectedFarm?.name}</p>
 
           <form onSubmit={handleSaveField} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Field Name *</label>
+              <label className="block text-xs font-semibold text-earth-700 mb-1.5">Field Name *</label>
               <input
                 type="text"
                 required
                 placeholder="North Plot A1"
                 value={fieldName}
                 onChange={(e) => setFieldName(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Field Type</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Field Type</label>
                 <select
                   value={fieldType}
                   onChange={(e) => setFieldType(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 focus:outline-none focus:border-forest-600"
                 >
                   <option value="open_field">Open Field</option>
                   <option value="greenhouse">Greenhouse</option>
@@ -823,7 +823,7 @@ export const MyFarms: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Area (ha)</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Area (ha)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -831,19 +831,19 @@ export const MyFarms: React.FC = () => {
                   placeholder="3.5"
                   value={fieldArea}
                   onChange={(e) => setFieldArea(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Soil Type</label>
+              <label className="block text-xs font-semibold text-earth-700 mb-1.5">Soil Type</label>
               <input
                 type="text"
                 placeholder="Alluvial Clay / Sandy Loam"
                 value={fieldSoil}
                 onChange={(e) => setFieldSoil(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
               />
             </div>
 
@@ -851,14 +851,14 @@ export const MyFarms: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setFieldModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl"
+                className="px-4 py-2 bg-cream-100 hover:bg-cream-200 text-earth-800 text-xs font-bold rounded-xl border border-cream-300"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                className="px-5 py-2 bg-forest-700 hover:bg-forest-800 text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Adding...' : 'Add Field'}
               </button>
@@ -872,65 +872,71 @@ export const MyFarms: React.FC = () => {
   function renderCropModal() {
     if (!cropModalOpen) return null;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-        <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-          <h3 className="text-lg font-bold text-white mb-1">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0a1c15]/60 backdrop-blur-sm animate-fadeIn">
+        <div className="relative w-full max-w-md bg-white border border-cream-300 rounded-3xl p-6 shadow-2xl">
+          <button
+            onClick={() => setCropModalOpen(false)}
+            className="absolute top-5 right-5 p-2 rounded-xl text-earth-400 hover:text-earth-900 hover:bg-cream-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <h3 className="text-lg font-bold text-earth-900 mb-1">
             {editingCrop ? 'Update Crop Cycle' : 'Plant Crop in Field'}
           </h3>
-          <p className="text-xs text-slate-400 mb-4">Field: {selectedFieldForCrop?.name}</p>
+          <p className="text-xs text-earth-500 mb-4">Field: {selectedFieldForCrop?.name}</p>
 
           <form onSubmit={handleSaveCrop} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Crop Name *</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Crop Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="Paddy / Rice"
                   value={cropName}
                   onChange={(e) => setCropName(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Variety</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Variety</label>
                 <input
                   type="text"
                   placeholder="Ponni / CR 1009"
                   value={cropVariety}
                   onChange={(e) => setCropVariety(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Planting Date</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Planting Date</label>
                 <input
                   type="date"
                   value={cropPlantDate}
                   onChange={(e) => setCropPlantDate(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 focus:outline-none focus:border-forest-600"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Harvest Date</label>
+                <label className="block text-xs font-semibold text-earth-700 mb-1.5">Harvest Date</label>
                 <input
                   type="date"
                   value={cropHarvestDate}
                   onChange={(e) => setCropHarvestDate(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 focus:outline-none focus:border-forest-600"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Growth Status</label>
+              <label className="block text-xs font-semibold text-earth-700 mb-1.5">Growth Status</label>
               <select
                 value={cropStatus}
                 onChange={(e) => setCropStatus(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 focus:outline-none focus:border-forest-600"
               >
                 <option value="planted">Planted (Seedling / Sown)</option>
                 <option value="growing">Vegetative Growth</option>
@@ -940,13 +946,13 @@ export const MyFarms: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Notes</label>
+              <label className="block text-xs font-semibold text-earth-700 mb-1.5">Notes</label>
               <textarea
                 rows={2}
                 placeholder="Fertilizer schedule, weather observations, etc."
                 value={cropNotes}
                 onChange={(e) => setCropNotes(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2 bg-cream-50 border border-cream-300 rounded-xl text-xs text-earth-900 placeholder-earth-400 focus:outline-none focus:border-forest-600"
               />
             </div>
 
@@ -954,14 +960,14 @@ export const MyFarms: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCropModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl"
+                className="px-4 py-2 bg-cream-100 hover:bg-cream-200 text-earth-800 text-xs font-bold rounded-xl border border-cream-300"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                className="px-5 py-2 bg-forest-700 hover:bg-forest-800 text-white text-xs font-bold rounded-xl shadow-sm disabled:opacity-50"
               >
                 {loading ? 'Saving...' : editingCrop ? 'Update Crop' : 'Plant Crop'}
               </button>
@@ -972,3 +978,4 @@ export const MyFarms: React.FC = () => {
     );
   }
 };
+export default MyFarms;

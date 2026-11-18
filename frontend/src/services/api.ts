@@ -24,6 +24,17 @@ import {
   WaterIntelligenceCombinedResponse,
   UnifiedFarmAnalysisResponse,
 } from '../types/intelligence';
+import {
+  FarmTask,
+  TaskCreatePayload,
+  TaskUpdatePayload,
+} from '../types/task';
+import {
+  ActivityTemplate,
+  GenerateSuggestionsPayload,
+  GenerateSuggestionsResponse,
+  CalendarQueryParams,
+} from '../types/calendar';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -418,5 +429,78 @@ export async function agentChatApi(
     body: JSON.stringify(payload),
   });
 }
+
+// ========================================================
+// PHASE 6: FARM TASK MANAGEMENT
+// ========================================================
+
+export async function getTasksApi(farmId?: string): Promise<FarmTask[]> {
+  const query = farmId ? `?farm_id=${encodeURIComponent(farmId)}` : '';
+  return apiRequest<FarmTask[]>(`/api/v1/tasks/${query}`);
+}
+
+export async function createTaskApi(payload: TaskCreatePayload): Promise<FarmTask> {
+  return apiRequest<FarmTask>('/api/v1/tasks/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function toggleTaskApi(taskId: string): Promise<FarmTask> {
+  return apiRequest<FarmTask>(`/api/v1/tasks/${taskId}/toggle`, {
+    method: 'PATCH',
+  });
+}
+
+export async function updateTaskApi(taskId: string, payload: TaskUpdatePayload): Promise<FarmTask> {
+  return apiRequest<FarmTask>(`/api/v1/tasks/${taskId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteTaskApi(taskId: string): Promise<void> {
+  await apiRequest<void>(`/api/v1/tasks/${taskId}`, {
+    method: 'DELETE',
+  });
+}
+
+// ========================================================
+// PHASE 7: SMART FARMING CALENDAR & SUGGESTIONS
+// ========================================================
+
+export async function getCalendarActivitiesApi(params: CalendarQueryParams = {}): Promise<FarmTask[]> {
+  const queryParts: string[] = [];
+  if (params.farm_id) queryParts.push(`farm_id=${encodeURIComponent(params.farm_id)}`);
+  if (params.field_id) queryParts.push(`field_id=${encodeURIComponent(params.field_id)}`);
+  if (params.crop_id) queryParts.push(`crop_id=${encodeURIComponent(params.crop_id)}`);
+  if (params.start_date) queryParts.push(`start_date=${encodeURIComponent(params.start_date)}`);
+  if (params.end_date) queryParts.push(`end_date=${encodeURIComponent(params.end_date)}`);
+  if (params.status) queryParts.push(`status=${encodeURIComponent(params.status)}`);
+  if (params.category) queryParts.push(`category=${encodeURIComponent(params.category)}`);
+
+  const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  return apiRequest<FarmTask[]>(`/api/v1/tasks/calendar/${qs}`);
+}
+
+export async function getActivityTemplatesApi(cropName?: string, category?: string): Promise<ActivityTemplate[]> {
+  const queryParts: string[] = [];
+  if (cropName) queryParts.push(`crop_name=${encodeURIComponent(cropName)}`);
+  if (category) queryParts.push(`category=${encodeURIComponent(category)}`);
+
+  const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  return apiRequest<ActivityTemplate[]>(`/api/v1/activity-templates/${qs}`);
+}
+
+export async function generateCropSuggestionsApi(
+  payload: GenerateSuggestionsPayload
+): Promise<GenerateSuggestionsResponse> {
+  return apiRequest<GenerateSuggestionsResponse>('/api/v1/tasks/generate-suggestions/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+
 
 

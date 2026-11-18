@@ -141,7 +141,11 @@ class GISService:
         """
 
         try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
+            overpass_headers = {
+                "User-Agent": "AgriNexusAI/1.0 (Agricultural Hydrological Survey; contact@agrinexus.ai)",
+                "Accept": "application/json",
+            }
+            async with httpx.AsyncClient(timeout=8.0, headers=overpass_headers) as client:
                 res = await client.post(overpass_url, data={"data": query})
                 if res.status_code == 200:
                     data = res.json()
@@ -183,13 +187,16 @@ class GISService:
                                 "coordinates": {"latitude": el_lat, "longitude": el_lon},
                                 "osm_id": el.get("id"),
                             })
+                else:
+                    logger.warning(f"Overpass API returned HTTP {res.status_code}, utilizing regional baseline.")
+                    source = "Hydrological Regional Fallback"
         except Exception as err:
             logger.warning(f"Overpass API water resource fetch timed out or failed: {err}")
             source = "Hydrological Regional Fallback"
 
         # If no results returned from external API or offline, generate accurate geographical regional context
         if not water_bodies:
-            # Regional hydrological fallback based on coordinates
+            source = "Hydrological Regional Fallback"
             water_bodies = GISService._generate_regional_water_context(latitude, longitude)
 
         # Sort by distance

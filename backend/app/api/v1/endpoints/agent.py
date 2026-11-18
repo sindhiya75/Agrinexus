@@ -1,7 +1,8 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_active_user
+from app.api.deps import get_optional_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.agent import AgentChatRequest, AgentChatResponse
@@ -20,7 +21,7 @@ farming_mentor_agent = AgentFarmingMentor()
 )
 async def chat_with_agent(
     request: AgentChatRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: Session = Depends(get_db)
 ):
     try:

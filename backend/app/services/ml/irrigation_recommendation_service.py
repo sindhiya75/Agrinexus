@@ -45,28 +45,30 @@ class IrrigationRecommendationService:
         return max(1.5, min(10.0, round(et0 * hum_factor * wind_factor, 2)))
 
     def recommend(self, req: IrrigationRecommendationRequest) -> IrrigationRecommendationResponse:
-        crop_key = req.crop.lower().strip()
+        crop_key = (req.crop or "tomato").lower().strip()
         kc_table = FAO_CROP_KC.get(crop_key, DEFAULT_KC)
-        stage_key = req.growth_stage.lower().strip()
+        stage_key = (req.growth_stage or "mid_season").lower().strip()
         kc = kc_table.get(stage_key, kc_table.get("mid_season", 1.10))
+        area_ha = max(0.01, float(req.area_ha or 1.0))
+        soil_texture = (req.soil_texture or "loam").lower().strip()
 
         # Determine reference ET0
         if req.et0_mm_day and req.et0_mm_day > 0:
             et0 = req.et0_mm_day
         else:
             et0 = self._calculate_fao_et0(
-                temp=req.temperature_c or 28.0,
-                humidity=req.humidity_percent or 65.0,
-                wind=req.wind_speed_kmh or 12.0,
-                rad=req.solar_radiation_mj or 18.0
+                temp=req.temperature_c if req.temperature_c is not None else 28.0,
+                humidity=req.humidity_percent if req.humidity_percent is not None else 65.0,
+                wind=req.wind_speed_kmh if req.wind_speed_kmh is not None else 12.0,
+                rad=req.solar_radiation_mj if req.solar_radiation_mj is not None else 18.0
             )
 
         # Crop Evapotranspiration: ETc = Kc * ET0 (mm/day)
         etc_daily = round(kc * et0, 2)
         seven_day_demand_mm = round(etc_daily * 7.0, 2)
 
-        # Effective rainfall (FAO approximation: 70% of rainfall up to 100mm is crop-effective)
-        raw_rain = req.forecast_rainfall_7d_mm or 0.0
+        # Effective rainfall (FAO approximation: 75% of rainfall up to seven_day_demand is crop-effective)
+        raw_rain = max(0.0, float(req.forecast_rainfall_7d_mm or 0.0))
         effective_rain = round(min(raw_rain * 0.75, seven_day_demand_mm), 2)
 
         # Net Irrigation Requirement in mm (Deficit)
@@ -74,34 +76,39 @@ class IrrigationRecommendationService:
 
         # Volumetric calculations: 1 mm depth on 1 hectare = 10 m³ (10,000 liters)
         # Total Net Volume = net_mm * area_ha * 10 m³
-        net_vol_m3 = round(net_irrig_mm * req.area_ha * 10.0, 1)
+        net_vol_m3 = round(net_irrig_mm * area_ha * 10.0, 1)
 
-        # Gross irrigation volume assuming Drip Irrigation (90% efficiency) vs Furrow/Flood (60% efficiency)
+        # Gross irrigation volume assuming Drip Irrigation (88% efficiency)
         drip_efficiency = 0.88
         gross_vol_m3 = round(net_vol_m3 / drip_efficiency, 1)
 
         # Drip run time estimate:
-        # Standard agricultural drip system delivers ~25-30 m³/ha per operating hour
-        pump_discharge_m3_per_hr = max(5.0, req.area_ha * 25.0)
+        # Standard agricultural drip system delivers ~25 m³/ha per operating hour
+        pump_discharge_m3_per_hr = max(5.0, area_ha * 25.0)
         daily_gross_m3 = gross_vol_m3 / 7.0
-        daily_run_hours = round(daily_gross_m3 / pump_discharge_m3_per_hr, 1)
+        if net_irrig_mm <= 0.0:
+            daily_run_hours = 0.0
+        else:
+            daily_run_hours = max(0.1, round(daily_gross_m3 / pump_discharge_m3_per_hr, 1))
 
         # Schedule wording
-        if net_irrig_mm <= 5.0:
-            schedule = "No immediate supplemental irrigation required. Sufficient soil moisture or upcoming rainfall will meet crop transpiration demand."
+        if net_irrig_mm <= 0.0:
+            schedule = f"No supplemental irrigation required this week. Upcoming forecast rainfall ({raw_rain} mm) will fully satisfy crop evapotranspiration demand ({seven_day_demand_mm} mm). Ensure surface drainage is clear to prevent waterlogging."
+        elif net_irrig_mm <= 5.0:
+            schedule = f"Minimal deficit ({net_irrig_mm} mm / ~{gross_vol_m3} m³). Upcoming rainfall satisfies most water needs. Consider a light drip cycle (~{daily_run_hours} hrs) only if topsoil feels dry."
         elif net_irrig_mm <= 20.0:
-            schedule = f"Light irrigation cycle: Apply {round(gross_vol_m3 / 2, 1)} m³ twice this week (e.g., Wednesday and Sunday)."
+            schedule = f"Light irrigation cycle: Apply {round(gross_vol_m3 / 2, 1)} m³ twice this week (~{daily_run_hours} hrs per cycle, e.g. Wednesday and Sunday)."
         else:
             schedule = f"Intensive irrigation cycle: Apply ~{round(daily_gross_m3, 1)} m³/day for {daily_run_hours} hours daily in 2 split runs (early morning and late afternoon)."
 
         tips = [
             "Irrigate during early morning (6:00 AM – 9:00 AM) or late evening to minimize direct atmospheric evaporative losses.",
             "Use organic straw or plastic mulching along plant beds to reduce soil moisture evaporation by up to 35%.",
-            f"Soil texture '{req.soil_texture}': Adjust cycle frequency — lighter sandy soils need frequent short cycles, whereas clay soils require deeper, spaced irrigations to avoid root hypoxia."
+            f"Soil texture '{soil_texture}': Adjust cycle frequency — lighter sandy soils need frequent short cycles, whereas clay soils require deeper, spaced irrigations to avoid root hypoxia."
         ]
 
         return IrrigationRecommendationResponse(
-            crop=req.crop.capitalize(),
+            crop=(req.crop or "Tomato").capitalize(),
             growth_stage=stage_key.replace("_", " ").capitalize(),
             crop_coefficient_kc=kc,
             et0_mm_day=et0,

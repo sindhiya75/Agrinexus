@@ -7,6 +7,7 @@ import { SmartFarmMap } from './pages/SmartFarmMap';
 import { FarmAnalysis } from './pages/FarmAnalysis';
 import { AIMentor } from './pages/AIMentor';
 import { CropPlanning } from './pages/CropPlanning';
+import { SmartFarmingCalendar } from './pages/SmartFarmingCalendar';
 import { IrrigationPage } from './pages/IrrigationPage';
 import { FertilizerPage } from './pages/FertilizerPage';
 import { DiseaseDetectionPage } from './pages/DiseaseDetectionPage';
@@ -45,7 +46,7 @@ function MainAppContent() {
   }, [checkHealth]);
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-[#edf4ee] text-earth-900 overflow-hidden font-sans">
       {/* Sidebar with Desktop & Mobile Support */}
       <Sidebar 
         currentTab={currentTab} 
@@ -82,6 +83,7 @@ function MainAppContent() {
           {currentTab === 'farm-analysis' && <FarmAnalysis />}
           {currentTab === 'ai-mentor' && <AIMentor />}
           {currentTab === 'crop-planning' && <CropPlanning />}
+          {currentTab === 'smart-farming-calendar' && <SmartFarmingCalendar />}
           {currentTab === 'irrigation' && <IrrigationPage />}
           {currentTab === 'fertilizer' && <FertilizerPage />}
           {currentTab === 'disease-detection' && <DiseaseDetectionPage />}

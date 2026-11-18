@@ -14,6 +14,8 @@ from app.api.v1.endpoints import (
     farm_analysis,
     ml,
     agent,
+    tasks,
+    activity_templates,
 )
 
 api_router = APIRouter()
@@ -49,3 +51,9 @@ api_router.include_router(ml.router, tags=["Machine Learning Intelligence"])
 
 # Phase 5 Agent AI Farming Mentor
 api_router.include_router(agent.router, tags=["Agent AI Farming Mentor"])
+
+# Farm Tasks CRUD
+api_router.include_router(tasks.router, prefix="/tasks", tags=["Farm Tasks"])
+
+# Agronomic Activity Templates
+api_router.include_router(activity_templates.router, prefix="/activity-templates", tags=["Activity Templates"])

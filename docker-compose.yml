@@ -49,10 +49,13 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-agrinexus_user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-agrinexus_password}
       - CORS_ORIGINS=["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173","http://127.0.0.1:3000"]
+      - SECRET_KEY=${SECRET_KEY:-agrinexus_dev_jwt_secret_key_change_in_production_phase_1}
+      - MODEL_DIR=/app/ml/models
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./ml:/app/ml:ro
     networks:
       - agrinexus_network
 

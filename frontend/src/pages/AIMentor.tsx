@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Farm } from '../types/farm';
 import { getFarmsApi } from '../services/api';
-import { Bot, Sparkles, MapPin, ShieldCheck, Compass } from 'lucide-react';
 import { AgentMentorChat } from '../components/AgentMentorChat';
 
 export const AIMentor: React.FC = () => {
@@ -44,34 +43,28 @@ export const AIMentor: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="space-y-4 max-w-4xl mx-auto pb-12 font-sans">
+      {/* Top Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-semibold mb-2">
-            <Bot className="w-3.5 h-3.5" />
-            Phase 5 — Autonomous Agricultural Agent
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            AI Agricultural Mentor <Sparkles className="w-5 h-5 text-purple-400" />
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-            Ask conversational questions in natural language. The agent executes dynamic planning across GIS, soil, weather, FAO-56 irrigation, and ML prediction engines to provide grounded, citation-backed farm advisories.
+          <h2 className="text-xl font-bold text-neutral-900 tracking-tight">AI Farming Mentor</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Ask questions about crop schedules, fertilizer, irrigation, and field diagnostics.
           </p>
         </div>
 
         {/* Farm Selector */}
         {farms.length > 0 && (
-          <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 p-1.5 rounded-xl">
-            <MapPin className="w-4 h-4 text-purple-400 ml-1.5" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-neutral-500">Farm:</span>
             <select
               value={selectedFarmId}
               onChange={handleSelectFarm}
-              className="bg-transparent text-white text-xs font-medium focus:outline-none pr-3"
+              className="bg-white border border-[#cfe2d5] text-neutral-900 text-xs font-medium rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-forest-600 shadow-2xs"
             >
               {farms.map((f) => (
-                <option key={f.id} value={f.id} className="bg-slate-800">
-                  {f.name} ({f.total_area_hectares?.toFixed(1) || '?'} ha)
+                <option key={f.id} value={f.id}>
+                  {f.name} ({f.total_area_hectares ? `${f.total_area_hectares.toFixed(1)} ha` : 'No area'})
                 </option>
               ))}
             </select>
@@ -80,7 +73,7 @@ export const AIMentor: React.FC = () => {
       </div>
 
       {/* Main Conversational Workspace */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl">
+      <div className="bg-[#f8fbf9] border border-[#cfe2d5] rounded-2xl overflow-hidden shadow-soft">
         <AgentMentorChat
           farms={farms}
           selectedFarmId={selectedFarmId}
@@ -89,31 +82,7 @@ export const AIMentor: React.FC = () => {
           customArea={customArea}
         />
       </div>
-
-      {/* Agent Guardrails & Capabilities Footer */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-400">
-        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-start gap-2.5">
-          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold text-white block">Multi-Tenant Protected</span>
-            <span>All tool calls strictly enforce user ownership checks on farm IDs.</span>
-          </div>
-        </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-start gap-2.5">
-          <Compass className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold text-white block">Verified Data Citations</span>
-            <span>Retrieved data, calculated values, and ML predictions are clearly distinguished.</span>
-          </div>
-        </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-start gap-2.5">
-          <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold text-white block">12 Agricultural Tools</span>
-            <span>Orchestrates PostGIS, SoilGrids, Open-Meteo, RDF nutrients, and CV diagnosis.</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
+export default AIMentor;

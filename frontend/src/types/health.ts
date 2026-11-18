@@ -24,6 +24,7 @@ export type TabType =
   | 'farm-analysis'
   | 'ai-mentor'
   | 'crop-planning'
+  | 'smart-farming-calendar'
   | 'irrigation'
   | 'fertilizer'
   | 'disease-detection'

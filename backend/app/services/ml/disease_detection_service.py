@@ -13,12 +13,15 @@ class DiseaseDetectionService:
     def __init__(self, model_dir: Optional[str] = None):
         if model_dir is None:
             candidates = [
+                os.getenv("MODEL_DIR"),
                 os.path.abspath("ml/models"),
+                os.path.abspath("../ml/models"),
+                "/app/ml/models",
                 os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../ml/models")),
                 os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../ml/models")),
             ]
             for c in candidates:
-                if os.path.exists(os.path.join(c, "disease_classifier.joblib")):
+                if c and os.path.exists(os.path.join(c, "disease_classifier.joblib")):
                     model_dir = c
                     break
             if model_dir is None:

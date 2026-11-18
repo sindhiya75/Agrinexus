@@ -46,8 +46,10 @@ yield_ml_service = YieldPredictionService()
 disease_ml_service = DiseaseDetectionService()
 
 
-def tool_get_farm_location(farm_id: str, current_user: User, db: Session) -> Dict[str, Any]:
+def tool_get_farm_location(farm_id: str, current_user: Optional[User], db: Session) -> Dict[str, Any]:
     """Retrieve GPS coordinates, location name, and boundary for a user's farm holding."""
+    if not current_user:
+        return {"error": "Unauthorized: You do not have permission to access this farm holding. Please sign in."}
     farm = db.query(Farm).filter(Farm.id == farm_id).first()
     if not farm:
         return {"error": f"Farm with ID '{farm_id}' was not found in database."}
@@ -76,8 +78,10 @@ def tool_get_farm_location(farm_id: str, current_user: User, db: Session) -> Dic
     }
 
 
-def tool_get_farm_area(farm_id: str, current_user: User, db: Session) -> Dict[str, Any]:
+def tool_get_farm_area(farm_id: str, current_user: Optional[User], db: Session) -> Dict[str, Any]:
     """Retrieve verified land area in hectares and acres for a user's farm."""
+    if not current_user:
+        return {"error": "Unauthorized access to farm data. Please sign in."}
     farm = db.query(Farm).filter(Farm.id == farm_id).first()
     if not farm:
         return {"error": f"Farm with ID '{farm_id}' was not found."}
@@ -187,13 +191,13 @@ async def tool_get_terrain(latitude: float, longitude: float) -> Dict[str, Any]:
 async def tool_find_nearby_water_resources(latitude: float, longitude: float, area_ha: float = 1.0) -> Dict[str, Any]:
     """Scan natural surface water bodies (rivers, lakes, canals, reservoirs) within 10 km."""
     try:
-        w = await water_service.get_water_intelligence(latitude, longitude, area_ha)
+        w = await water_service.get_combined_water_intelligence(latitude, longitude, area_ha)
         return {
             "status": "success",
             "water_accessibility": w.water_accessibility_rating,
             "closest_water_body": {
                 "name": w.closest_water_body.name if w.closest_water_body else "None within 10 km",
-                "type": w.closest_water_body.water_type if w.closest_water_body else "N/A",
+                "type": w.closest_water_body.type if w.closest_water_body else "N/A",
                 "distance_km": w.closest_water_body.distance_km if w.closest_water_body else None
             },
             "nearby_bodies_count": len(w.nearby_water_bodies),

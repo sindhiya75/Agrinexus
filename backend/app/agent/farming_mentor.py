@@ -115,7 +115,7 @@ def planner_node(state: AgentState) -> AgentState:
     return state
 
 
-async def tool_executor_node(state: AgentState, current_user: User, db: Session) -> AgentState:
+async def tool_executor_node(state: AgentState, current_user: Optional[User], db: Session) -> AgentState:
     """Execute sequenced tools, honoring authorization, database context, and service layers."""
     results = {}
     citations = []
@@ -412,13 +412,22 @@ def reasoner_and_synthesizer_node(state: AgentState) -> AgentState:
     elif intent == "irrigation_planning":
         irrig = results.get("calculate_irrigation", {})
         wat = results.get("find_nearby_water_resources", {})
+        net_mm = irrig.get('net_irrigation_demand_mm', 0.0)
+        daily_hrs = irrig.get('drip_run_hours_daily', 0.0)
         lines.append(f"**Hydrological & Irrigation Assessment:**")
-        lines.append(f"- 7-Day Net Deficit: **{irrig.get('net_irrigation_demand_mm')} mm**")
-        lines.append(f"- Volumetric Demand: **{irrig.get('net_irrigation_volume_m3')} m³**")
-        lines.append(f"- Drip Schedule: **{irrig.get('drip_run_hours_daily')} hrs/day**")
+        if net_mm <= 0.0:
+            lines.append(f"- **7-Day Net Deficit**: **0.0 mm** (Sufficient rainfall — forecast precipitation satisfies crop transpiration demand)")
+            lines.append(f"- **Volumetric Demand**: **0.0 m³**")
+            lines.append(f"- **Drip Schedule**: **Pumps Idle (0.0 hrs/day)** — Hold off irrigation to prevent root hypoxia and waterlogging.")
+        else:
+            lines.append(f"- **7-Day Net Deficit**: **{net_mm} mm**")
+            lines.append(f"- **Volumetric Demand**: **{irrig.get('net_irrigation_volume_m3')} m³**")
+            lines.append(f"- **Drip Schedule**: **{daily_hrs} hrs/day**")
+        if irrig.get("schedule"):
+            lines.append(f"- **Action Plan**: {irrig['schedule']}")
         if wat.get("closest_water_body"):
             c = wat["closest_water_body"]
-            lines.append(f"- Surface Water Source: **{c.get('name')}** ({c.get('distance_km')} km away, Accessibility: *{wat.get('water_accessibility')}*).")
+            lines.append(f"- **Surface Water Source**: **{c.get('name')}** ({c.get('distance_km')} km away, Accessibility: *{wat.get('water_accessibility')}*).")
 
     elif intent == "yield_prediction":
         y = results.get("predict_yield", {})
@@ -471,14 +480,14 @@ class AgentFarmingMentor:
     async def chat(
         self,
         request: AgentChatRequest,
-        current_user: User,
+        current_user: Optional[User],
         db: Session
     ) -> AgentChatResponse:
         session_id = request.session_id or str(uuid.uuid4())
 
         initial_state: AgentState = {
             "session_id": session_id,
-            "user_id": current_user.id,
+            "user_id": current_user.id if current_user else "guest_user",
             "farm_id": request.farm_id,
             "user_message": request.message,
             "latitude": request.latitude,

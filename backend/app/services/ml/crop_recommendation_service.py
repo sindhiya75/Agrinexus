@@ -13,14 +13,17 @@ from app.schemas.ml import (
 class CropRecommendationService:
     def __init__(self, model_dir: Optional[str] = None):
         if model_dir is None:
-            # Check relative to cwd or repo root
+            # Check relative to cwd, env var, docker paths, or repo root
             candidates = [
+                os.getenv("MODEL_DIR"),
                 os.path.abspath("ml/models"),
+                os.path.abspath("../ml/models"),
+                "/app/ml/models",
                 os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../ml/models")),
                 os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../ml/models")),
             ]
             for c in candidates:
-                if os.path.exists(os.path.join(c, "crop_recommender.joblib")):
+                if c and os.path.exists(os.path.join(c, "crop_recommender.joblib")):
                     model_dir = c
                     break
             if model_dir is None:
@@ -112,29 +115,66 @@ class CropRecommendationService:
 
         # Rank by probability
         ranked_indices = np.argsort(probs)[::-1][:top_k]
+        top_prob = float(probs[ranked_indices[0]]) if len(ranked_indices) > 0 else 1.0
 
         recommendations: List[RecommendedCrop] = []
         for rank, idx in enumerate(ranked_indices):
             crop_name = classes[idx]
-            conf = float(probs[idx])
-            
-            if conf >= 0.35:
+            raw_prob = float(probs[idx])
+            factors = self._evaluate_factors(crop_name, req)
+
+            # Calculate physiological compliance across agronomic factors
+            factor_scores = []
+            profiles = self.metadata.get("crop_profiles", {})
+            prof = profiles.get(crop_name.lower(), {})
+            feature_map = {
+                "Nitrogen (N)": (req.nitrogen, prof.get("N", [20, 80])),
+                "Phosphorus (P)": (req.phosphorus, prof.get("P", [20, 80])),
+                "Potassium (K)": (req.potassium, prof.get("K", [20, 80])),
+                "Temperature": (req.temperature, prof.get("temp", [18, 30])),
+                "Humidity": (req.humidity, prof.get("humidity", [50, 85])),
+                "Soil pH": (req.ph, prof.get("ph", [6.0, 7.5])),
+                "Rainfall": (req.rainfall, prof.get("rain", [60, 150])),
+            }
+            for _, (val, opt_range) in feature_map.items():
+                low, high = opt_range
+                if low <= val <= high:
+                    factor_scores.append(1.0)
+                elif val < low:
+                    span = max(1.0, high - low)
+                    dist = low - val
+                    factor_scores.append(max(0.25, 1.0 - (dist / (span * 1.5))))
+                else:
+                    span = max(1.0, high - low)
+                    dist = val - high
+                    factor_scores.append(max(0.25, 1.0 - (dist / (span * 1.5))))
+
+            avg_compliance = float(np.mean(factor_scores)) if factor_scores else 0.70
+            rel_model_weight = min(1.0, max(0.0, raw_prob / max(top_prob, 0.001)))
+
+            # Composite calibrated agronomic match score (0.0 to 0.99)
+            calibrated_score = round(min(0.99, max(0.10, 0.70 * avg_compliance + 0.30 * (avg_compliance * rel_model_weight))), 4)
+
+            if calibrated_score >= 0.85:
                 suitability = "Highly Recommended"
-            elif conf >= 0.15:
+            elif calibrated_score >= 0.70:
                 suitability = "Recommended"
             else:
                 suitability = "Moderately Suitable"
 
-            factors = self._evaluate_factors(crop_name, req)
             optimal_count = sum(1 for f in factors.values() if f.status == "Optimal")
-            summary = (
-                f"{crop_name.capitalize()} shows {round(conf * 100, 1)}% agronomic match. "
-                f"{optimal_count} of 7 key environmental parameters fall precisely within ideal vegetative thresholds."
-            )
+            suboptimal = [name for name, f in factors.items() if f.status != "Optimal"]
+
+            if optimal_count == len(factors):
+                summary = "Prime physiological fit: all 7 soil and climate parameters fall within optimal thresholds."
+            elif len(suboptimal) == 1:
+                summary = f"Strong agronomic fit ({optimal_count}/{len(factors)} optimal). Note: {suboptimal[0]} is {factors[suboptimal[0]].status.lower()}."
+            else:
+                summary = f"{optimal_count}/{len(factors)} parameters optimal. Sub-optimal factors: {', '.join(suboptimal[:2])}."
 
             recommendations.append(RecommendedCrop(
                 crop=crop_name.capitalize(),
-                confidence_score=round(conf, 4),
+                confidence_score=calibrated_score,
                 suitability=suitability,
                 agronomic_factors=factors,
                 summary=summary

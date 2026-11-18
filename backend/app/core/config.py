@@ -1,6 +1,6 @@
 import json
 from typing import List, Union
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     API_V1_STR: str = "/api/v1"
+    MODEL_DIR: Union[str, None] = None
 
     # Security & JWT
     SECRET_KEY: str = "agrinexus_dev_jwt_secret_key_change_in_production_phase_1"
@@ -59,6 +60,19 @@ class Settings(BaseSettings):
         elif isinstance(v, (list, tuple)):
             return [str(i) for i in v]
         return []
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        if self.ENVIRONMENT.lower() in ("production", "prod"):
+            if (
+                not self.SECRET_KEY
+                or self.SECRET_KEY == "agrinexus_dev_jwt_secret_key_change_in_production_phase_1"
+                or len(self.SECRET_KEY) < 32
+            ):
+                raise ValueError(
+                    "In production, SECRET_KEY must be a secure random secret of at least 32 characters configured via environment."
+                )
+        return self
 
     @property
     def sync_database_uri(self) -> str:

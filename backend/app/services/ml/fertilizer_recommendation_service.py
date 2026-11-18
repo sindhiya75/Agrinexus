@@ -24,14 +24,19 @@ DEFAULT_RDF = {"N": 100.0, "P": 50.0, "K": 50.0, "organic_carbon_target": 0.70}
 
 class FertilizerRecommendationService:
     def recommend(self, req: FertilizerRecommendationRequest) -> FertilizerRecommendationResponse:
-        crop_key = req.crop.lower().strip()
+        crop_key = (req.crop or "rice").lower().strip()
         rdf = CROP_RDF.get(crop_key, DEFAULT_RDF)
+        stage_key = (req.growth_stage or "basal").lower().strip()
+
+        soil_n = max(0.0, float(req.soil_nitrogen if req.soil_nitrogen is not None else 0.0))
+        soil_p = max(0.0, float(req.soil_phosphorus if req.soil_phosphorus is not None else 0.0))
+        soil_k = max(0.0, float(req.soil_potassium if req.soil_potassium is not None else 0.0))
 
         # Calculate Nutrient Deficits (Target requirement minus soil test values, adjusted by soil efficiency factor)
         # Note: Soil test nutrients in kg/ha are partially available to crops in the current season
-        n_avail = req.soil_nitrogen * 0.40
-        p_avail = req.soil_phosphorus * 0.35
-        k_avail = req.soil_potassium * 0.50
+        n_avail = soil_n * 0.40
+        p_avail = soil_p * 0.35
+        k_avail = soil_k * 0.50
 
         n_deficit = max(0.0, round(rdf["N"] - n_avail, 1))
         p_deficit = max(0.0, round(rdf["P"] - p_avail, 1))
@@ -40,21 +45,21 @@ class FertilizerRecommendationService:
         deficits: List[NutrientDeficit] = [
             NutrientDeficit(
                 nutrient="Nitrogen (N)",
-                current_kg_ha=round(req.soil_nitrogen, 1),
+                current_kg_ha=round(soil_n, 1),
                 target_kg_ha=round(rdf["N"], 1),
                 deficit_kg_ha=n_deficit,
                 status="Deficient (High Need)" if n_deficit > 50 else ("Slight Deficit" if n_deficit > 0 else "Sufficient")
             ),
             NutrientDeficit(
                 nutrient="Phosphorus (P₂O₅)",
-                current_kg_ha=round(req.soil_phosphorus, 1),
+                current_kg_ha=round(soil_p, 1),
                 target_kg_ha=round(rdf["P"], 1),
                 deficit_kg_ha=p_deficit,
                 status="Deficient (High Need)" if p_deficit > 30 else ("Slight Deficit" if p_deficit > 0 else "Sufficient")
             ),
             NutrientDeficit(
                 nutrient="Potassium (K₂O)",
-                current_kg_ha=round(req.soil_potassium, 1),
+                current_kg_ha=round(soil_k, 1),
                 target_kg_ha=round(rdf["K"], 1),
                 deficit_kg_ha=k_deficit,
                 status="Deficient (High Need)" if k_deficit > 30 else ("Slight Deficit" if k_deficit > 0 else "Sufficient")
@@ -137,8 +142,8 @@ class FertilizerRecommendationService:
                 tips.append("Soil is alkaline (pH > 8.0). Apply Gypsum (CaSO₄) @ 500 kg/ha and emphasize sulfur-containing fertilizers (Ammonium Sulphate).")
 
         return FertilizerRecommendationResponse(
-            crop=req.crop.capitalize(),
-            growth_stage=req.growth_stage.replace("_", " ").capitalize(),
+            crop=(req.crop or "Rice").capitalize(),
+            growth_stage=stage_key.replace("_", " ").capitalize(),
             nutrient_deficits=deficits,
             recommended_fertilizers=fertilizers,
             organic_amendments=organic_amendments,

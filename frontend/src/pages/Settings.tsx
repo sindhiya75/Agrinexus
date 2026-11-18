@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings as SettingsIcon, Database, Server } from 'lucide-react';
+import { Database, Server, ExternalLink, FileText } from 'lucide-react';
 import { HealthResponse } from '../types/health';
 
 interface SettingsProps {
@@ -8,65 +8,81 @@ interface SettingsProps {
 
 export const Settings: React.FC<SettingsProps> = ({ health }) => {
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8">
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold mb-2">
-          <SettingsIcon className="w-3.5 h-3.5 text-emerald-400" /> Platform Configuration
-        </div>
-        <h1 className="text-2xl font-bold text-white">System Settings & Environment</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Review environment parameters, API routing prefixes, and database connection strings.
+    <div className="space-y-5 max-w-4xl pb-12 font-sans">
+      <div className="pb-1">
+        <h2 className="text-xl font-bold text-neutral-900 tracking-tight">System Settings & Diagnostics</h2>
+        <p className="text-xs text-neutral-500 mt-0.5">
+          Backend services, database parameters, and API configuration.
         </p>
       </div>
 
       <div className="space-y-4">
         {/* Backend Config */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-            <Server className="w-4 h-4 text-emerald-400" />
-            Backend API Configuration
-          </h3>
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5">
+          <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-3.5">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-900 flex items-center gap-2">
+              <Server className="w-4 h-4 text-forest-700" />
+              API Services
+            </h3>
+            <a
+              href="http://localhost:8000/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Swagger /docs</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-500 block mb-1">API Base URL</span>
-              <span className="text-slate-200">{import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">API Base URL</span>
+              <span className="text-neutral-900 font-semibold">{import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}</span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-500 block mb-1">API Prefix</span>
-              <span className="text-slate-200">/api/v1</span>
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">Prefix</span>
+              <span className="text-neutral-900 font-semibold">/api/v1</span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-500 block mb-1">Environment</span>
-              <span className="text-emerald-400">{health?.environment || 'development'}</span>
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">Environment</span>
+              <span className="text-neutral-900 font-semibold">{health?.environment || 'development'}</span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-500 block mb-1">Service Name</span>
-              <span className="text-slate-200">{health?.service || 'AgriNexus AI'}</span>
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">Core Service</span>
+              <span className="text-neutral-900 font-semibold">{health?.service || 'AgriNexus AI'}</span>
             </div>
           </div>
         </div>
 
         {/* Database Config */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-            <Database className="w-4 h-4 text-sky-400" />
-            PostgreSQL & PostGIS Connection Info
-          </h3>
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5">
+          <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-3.5">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-900 flex items-center gap-2">
+              <Database className="w-4 h-4 text-forest-700" />
+              PostgreSQL & PostGIS
+            </h3>
+            <span className="text-xs text-neutral-500">
+              Port: 5432
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-500 block mb-1">Database Name</span>
-              <span className="text-sky-300">{health?.database.database_name || 'agrinexus_db'}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">Database Name</span>
+              <span className="text-neutral-900 font-semibold">{health?.database.database_name || 'agrinexus_db'}</span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-              <span className="text-slate-500 block mb-1">Database Port</span>
-              <span className="text-slate-200">5432</span>
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">Connection Status</span>
+              <span className={health?.database.connected ? 'text-emerald-700 font-semibold font-sans' : 'text-rose-600 font-sans'}>
+                {health?.database.connected ? 'Connected' : 'Disconnected'}
+              </span>
             </div>
-            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 col-span-1 md:col-span-2">
-              <span className="text-slate-500 block mb-1">PostGIS Extension Status</span>
-              <span className={health?.database.postgis_installed ? 'text-emerald-400' : 'text-slate-400'}>
-                {health?.database.postgis_version || (health?.database.postgis_installed ? 'Enabled' : 'Not Connected')}
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100 sm:col-span-2">
+              <span className="text-neutral-500 block mb-0.5 font-sans text-[11px]">PostGIS Geometry Extension</span>
+              <span className={health?.database.postgis_installed ? 'text-neutral-900 font-semibold' : 'text-neutral-500'}>
+                {health?.database.postgis_version || (health?.database.postgis_installed ? 'Active' : 'Not Detected')}
               </span>
             </div>
           </div>
@@ -75,3 +91,4 @@ export const Settings: React.FC<SettingsProps> = ({ health }) => {
     </div>
   );
 };
+export default Settings;

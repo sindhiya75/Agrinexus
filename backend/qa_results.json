@@ -1,0 +1,276 @@
+{
+  "module_1_auth": {
+    "valid_registration": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 201
+      }
+    },
+    "duplicate_email_rejected": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 400
+      }
+    },
+    "valid_login": {
+      "status": "PASSED",
+      "details": {
+        "token_received": true
+      }
+    },
+    "invalid_password_rejected": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 401
+      }
+    },
+    "invalid_login_schema_rejected": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 422
+      }
+    },
+    "get_me_profile": {
+      "status": "PASSED",
+      "details": {
+        "email": "farmer_ab6d56@example.com"
+      }
+    },
+    "unauthorized_rejection": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 401
+      }
+    }
+  },
+  "module_2_farms_crud": {
+    "create_farm_user1": {
+      "status": "PASSED",
+      "details": {
+        "farm_id": "d24f7805-2273-4d2e-b328-2bf7cc6c0de3"
+      }
+    },
+    "multi_user_farm_isolation": {
+      "status": "PASSED",
+      "details": {
+        "user1_farms": 1,
+        "user2_farms": 0
+      }
+    },
+    "cross_tenant_read_rejected": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 404
+      }
+    },
+    "update_farm_user1": {
+      "status": "PASSED",
+      "details": {
+        "updated_name": "Cauvery Delta Agro Park - Updated"
+      }
+    },
+    "cross_tenant_delete_rejected": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 404
+      }
+    },
+    "delete_farm_user1": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 204
+      }
+    }
+  },
+  "module_3_gis_map": {
+    "geodesic_area_calculation": {
+      "status": "PASSED",
+      "details": {
+        "hectares": 30.3646,
+        "centroid": {
+          "latitude": 10.7875,
+          "longitude": 79.1375
+        }
+      }
+    },
+    "invalid_geojson_rejected": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 422
+      }
+    },
+    "save_farm_boundary": {
+      "status": "PASSED",
+      "details": {
+        "computed_area_ha": 30.3646
+      }
+    }
+  },
+  "module_4_intelligence": {
+    "soil_profile": {
+      "status": "PASSED",
+      "details": {
+        "soil_type": "Alluvial Loam (Inceptisols)",
+        "ph": 6.8
+      }
+    },
+    "weather_forecast": {
+      "status": "PASSED",
+      "details": {
+        "temp": 25.6
+      }
+    },
+    "rainfall_trends": {
+      "status": "PASSED",
+      "details": {
+        "forecast_7d_mm": 66.3
+      }
+    },
+    "terrain_topography": {
+      "status": "PASSED",
+      "details": {
+        "elevation": 59.0,
+        "slope": 1.45
+      }
+    },
+    "water_resources": {
+      "status": "PASSED",
+      "details": {
+        "bodies_found": 6
+      }
+    },
+    "unified_farm_analysis_coordinates": {
+      "status": "PASSED",
+      "details": {
+        "summary_len": 292
+      }
+    },
+    "unified_farm_analysis_saved_farm": {
+      "status": "PASSED",
+      "details": {
+        "summary_len": 293
+      }
+    }
+  },
+  "module_5_crop_yield_ml": {
+    "crop_recommendation_scoring": {
+      "status": "PASSED",
+      "details": {
+        "top_crop": "Rice",
+        "score": 0.99,
+        "suitability": "Highly Recommended"
+      }
+    },
+    "crop_recommendation_schema_validation": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 422
+      }
+    },
+    "yield_prediction_execution": {
+      "status": "PASSED",
+      "details": {
+        "yield_mt_ha": 3.64,
+        "ci": [
+          2.24,
+          5.04
+        ]
+      }
+    }
+  },
+  "module_6_irrigation": {
+    "irrigation_deficit_runtime": {
+      "status": "PASSED",
+      "details": {
+        "volume_m3": 560.2,
+        "hours_day": 1.8
+      }
+    },
+    "zero_deficit_rain_explanation": {
+      "status": "PASSED",
+      "details": {
+        "deficit": 0.0,
+        "schedule_explanation": "No supplemental irrigation required this week. Upcoming forecast rainfall (95.0 mm) will fully satisfy crop evapotranspiration demand (15.75 mm). Ensure surface drainage is clear to prevent waterlogging."
+      }
+    }
+  },
+  "module_7_fertilizer": {
+    "fertilizer_formulation": {
+      "status": "PASSED",
+      "details": {
+        "fertilizers": [
+          "DAP (Di-Ammonium Phosphate 18-46-0)",
+          "Urea (46% N)",
+          "MOP (Muriate of Potash 0-0-60)"
+        ]
+      }
+    },
+    "null_growth_stage_fallback": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 200
+      }
+    }
+  },
+  "module_8_disease": {
+    "image_disease_detection": {
+      "status": "PASSED",
+      "details": {
+        "condition": "Healthy",
+        "is_healthy": true,
+        "confidence": 0.46
+      }
+    },
+    "non_image_rejection": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 400
+      }
+    }
+  },
+  "module_9_ai_mentor": {
+    "autonomous_tool_execution": {
+      "status": "PASSED",
+      "details": {
+        "intent": "weekly_farm_planning",
+        "tools_executed": [
+          "get_farm_location",
+          "get_farm_area",
+          "get_weather",
+          "get_rainfall",
+          "analyze_soil",
+          "calculate_irrigation"
+        ],
+        "citations_count": 6,
+        "reply_length": 1071,
+        "has_markdown": true
+      }
+    },
+    "agent_unauthorized_farm_defense": {
+      "status": "PASSED",
+      "details": {
+        "alert_present": true
+      }
+    }
+  },
+  "module_10_api_error_handling": {
+    "non_existent_route_404": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 404
+      }
+    },
+    "out_of_range_coords_422": {
+      "status": "PASSED",
+      "details": {
+        "status_code": 422
+      }
+    },
+    "models_metadata_introspection": {
+      "status": "PASSED",
+      "details": {
+        "services_count": 5
+      }
+    }
+  }
+}

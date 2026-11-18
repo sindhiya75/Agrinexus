@@ -4,12 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { Farm } from '../types/farm';
 import { WeatherResponse, RainfallResponse, SoilProfileResponse } from '../types/intelligence';
 import { 
-  getFarmsApi, 
-  getWeatherApi, 
-  getRainfallApi, 
-  getSoilProfileApi 
-} from '../services/api';
-import { 
   Tractor, 
   MapPin, 
   CloudSun, 
@@ -19,20 +13,32 @@ import {
   Square, 
   Activity, 
   ChevronRight, 
-  ChevronDown, 
   Plus, 
   Droplets, 
-  Server, 
   Layers, 
-  ExternalLink, 
-  FileText, 
   ShieldAlert, 
-  Sparkles,
-  RefreshCw,
-  Loader2,
+  Loader2, 
+  Clock, 
+  ArrowUpRight,
+  Trash2,
+  Pencil,
+  RotateCw,
+  AlertCircle,
   Calendar,
-  Clock
+  X
 } from 'lucide-react';
+import { 
+  getFarmsApi, 
+  getWeatherApi, 
+  getRainfallApi, 
+  getSoilProfileApi,
+  getTasksApi,
+  createTaskApi,
+  toggleTaskApi,
+  updateTaskApi,
+  deleteTaskApi
+} from '../services/api';
+import { FarmTask, TaskUpdatePayload } from '../types/task';
 
 interface DashboardProps {
   health: HealthResponse | null;
@@ -41,15 +47,6 @@ interface DashboardProps {
   responseTimeMs: number;
   onRefresh: () => void;
   onNavigate?: (tab: TabType) => void;
-}
-
-interface FarmTask {
-  id: string;
-  title: string;
-  dueDate: string;
-  category: 'irrigation' | 'fertilizer' | 'scouting' | 'general';
-  priority: 'high' | 'medium' | 'low';
-  completed: boolean;
 }
 
 const INITIAL_TASKS: FarmTask[] = [
@@ -88,11 +85,6 @@ const INITIAL_TASKS: FarmTask[] = [
 ];
 
 export const Dashboard: React.FC<DashboardProps> = ({
-  health,
-  loading: healthLoading,
-  error: healthError,
-  responseTimeMs,
-  onRefresh: onRefreshHealth,
   onNavigate,
 }) => {
   const { isAuthenticated, user } = useAuth();
@@ -108,11 +100,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Farm tasks state
   const [tasks, setTasks] = useState<FarmTask[]>(INITIAL_TASKS);
+  const [tasksLoading, setTasksLoading] = useState<boolean>(false);
+  const [taskSyncError, setTaskSyncError] = useState<string | null>(null);
+  const [taskActionError, setTaskActionError] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState<string>('');
   const [showAddTask, setShowAddTask] = useState<boolean>(false);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
-  // Collapsible diagnostics state
-  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+  // Edit Task State
+  const [editingTask, setEditingTask] = useState<FarmTask | null>(null);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editDueDate, setEditDueDate] = useState<string>('');
+  const [editPriority, setEditPriority] = useState<'high' | 'medium' | 'low'>('medium');
+  const [editCategory, setEditCategory] = useState<string>('general');
+  const [isUpdatingTask, setIsUpdatingTask] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Load farms on mount or auth change
   useEffect(() => {
@@ -130,674 +132,912 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [isAuthenticated]);
 
-  // Load live environmental intelligence for selected farm or default location
+  // Load environmental intelligence when selected farm changes or defaults
   useEffect(() => {
-    const lat = selectedFarm?.latitude ?? 11.0168;
-    const lng = selectedFarm?.longitude ?? 76.9558;
+    const lat = selectedFarm?.latitude || 11.0168; // Default Coimbatore
+    const lng = selectedFarm?.longitude || 76.9558;
 
     setEnvLoading(true);
-    Promise.allSettled([
-      getWeatherApi(lat, lng),
-      getRainfallApi(lat, lng),
-      getSoilProfileApi(lat, lng),
-    ]).then(([wRes, rRes, sRes]) => {
-      if (wRes.status === 'fulfilled') setWeather(wRes.value);
-      if (rRes.status === 'fulfilled') setRainfall(rRes.value);
-      if (sRes.status === 'fulfilled') setSoil(sRes.value);
-      setEnvLoading(false);
-    });
+    Promise.all([
+      getWeatherApi(lat, lng).catch(() => null),
+      getRainfallApi(lat, lng).catch(() => null),
+      getSoilProfileApi(lat, lng).catch(() => null),
+    ])
+      .then(([weatherRes, rainfallRes, soilRes]) => {
+        if (weatherRes) setWeather(weatherRes);
+        if (rainfallRes) setRainfall(rainfallRes);
+        if (soilRes) setSoil(soilRes);
+      })
+      .finally(() => setEnvLoading(false));
   }, [selectedFarm]);
 
-  // Stats calculations
+  // Load tasks from backend when authenticated
+  const loadTasks = async () => {
+    if (!isAuthenticated) {
+      setTasks(INITIAL_TASKS);
+      setTaskSyncError(null);
+      setTasksLoading(false);
+      return;
+    }
+
+    setTasksLoading(true);
+    setTaskSyncError(null);
+    try {
+      const data = await getTasksApi(selectedFarm?.id);
+      if (Array.isArray(data)) {
+        // Always respect valid array response (even if empty, length === 0)
+        setTasks(data);
+      } else {
+        setTasks([]);
+      }
+    } catch (err: any) {
+      console.error('Failed to sync tasks from API:', err);
+      setTaskSyncError(err?.message || 'Failed to sync tasks from cloud');
+      // Do not silently substitute demo data for authenticated users on failure
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, [isAuthenticated, selectedFarm?.id]);
+
+  const handleToggleTask = async (taskId: string) => {
+    setTaskActionError(null);
+    // Optimistic local update
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+    );
+
+    if (isAuthenticated && !taskId.startsWith('t-')) {
+      try {
+        await toggleTaskApi(taskId);
+      } catch (err: any) {
+        console.error('Failed to toggle task via API:', err);
+        // Rollback state
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+        );
+        setTaskActionError(`Failed to update task status: ${err?.message || 'Server error'}`);
+      }
+    }
+  };
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+
+    const title = newTaskTitle.trim();
+    setNewTaskTitle('');
+    setShowAddTask(false);
+    setTaskActionError(null);
+
+    if (isAuthenticated) {
+      try {
+        const created = await createTaskApi({
+          title,
+          due_date: 'Scheduled',
+          category: 'general',
+          priority: 'medium',
+          farm_id: selectedFarm?.id || null,
+          completed: false,
+        });
+        setTasks((prev) => [created, ...prev]);
+      } catch (err: any) {
+        console.error('Failed to create task via API:', err);
+        const fallbackTask: FarmTask = {
+          id: `task-${Date.now()}`,
+          title,
+          due_date: 'Scheduled',
+          dueDate: 'Scheduled',
+          category: 'general',
+          priority: 'medium',
+          completed: false,
+        };
+        setTasks((prev) => [fallbackTask, ...prev]);
+        setTaskActionError(`Task created offline: ${err?.message || 'Failed to sync to cloud'}`);
+      }
+    } else {
+      const fallbackTask: FarmTask = {
+        id: `task-${Date.now()}`,
+        title,
+        due_date: 'Scheduled',
+        dueDate: 'Scheduled',
+        category: 'general',
+        priority: 'medium',
+        completed: false,
+      };
+      setTasks((prev) => [fallbackTask, ...prev]);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (deletingTaskId === taskId) return;
+    setTaskActionError(null);
+
+    // Preserve previous state for rollback
+    const previousTasks = [...tasks];
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+    if (isAuthenticated && !taskId.startsWith('t-') && !taskId.startsWith('task-')) {
+      setDeletingTaskId(taskId);
+      try {
+        await deleteTaskApi(taskId);
+      } catch (err: any) {
+        console.error('Failed to delete task via API:', err);
+        // Rollback to prior list on failure
+        setTasks(previousTasks);
+        setTaskActionError(`Failed to delete task: ${err?.message || 'Server error'}`);
+      } finally {
+        setDeletingTaskId(null);
+      }
+    }
+  };
+
+  const openEditModal = (task: FarmTask, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTask(task);
+    setEditTitle(task.title);
+    setEditDueDate(task.due_date || task.dueDate || 'Scheduled');
+    setEditPriority(task.priority || 'medium');
+    setEditCategory(task.category || 'general');
+    setEditError(null);
+  };
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    if (!editTitle.trim()) {
+      setEditError('Task title cannot be empty.');
+      return;
+    }
+
+    setIsUpdatingTask(true);
+    setEditError(null);
+
+    const updatedPayload: TaskUpdatePayload = {
+      title: editTitle.trim(),
+      due_date: editDueDate.trim() || 'Scheduled',
+      priority: editPriority,
+      category: editCategory,
+    };
+
+    if (isAuthenticated && !editingTask.id.startsWith('t-') && !editingTask.id.startsWith('task-')) {
+      try {
+        const result = await updateTaskApi(editingTask.id, updatedPayload);
+        setTasks((prev) => prev.map((t) => (t.id === editingTask.id ? result : t)));
+        setEditingTask(null);
+      } catch (err: any) {
+        console.error('Failed to update task via API:', err);
+        setEditError(`Failed to update task: ${err?.message || 'Server error'}`);
+      } finally {
+        setIsUpdatingTask(false);
+      }
+    } else {
+      // Local/demo update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === editingTask.id
+            ? {
+                ...t,
+                title: updatedPayload.title!,
+                due_date: updatedPayload.due_date!,
+                dueDate: updatedPayload.due_date!,
+                priority: updatedPayload.priority!,
+                category: updatedPayload.category!,
+              }
+            : t
+        )
+      );
+      setIsUpdatingTask(false);
+      setEditingTask(null);
+    }
+  };
+
+  // Aggregated metrics
   const totalFarms = farms.length;
   const totalHectares = farms.reduce((acc, f) => acc + (f.total_area_hectares || 0), 0);
   const totalAcres = totalHectares * 2.47105;
   const totalFields = farms.reduce((acc, f) => acc + (f.fields?.length || 0), 0);
-  const allCrops = farms.flatMap((f) => (f.fields || []).flatMap((field) => field.crops || []));
-
-  // Toggle task completion
-  const handleToggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
-  };
-
-  // Add new task
-  const handleAddTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) return;
-    const newTask: FarmTask = {
-      id: `task-${Date.now()}`,
-      title: newTaskTitle.trim(),
-      dueDate: 'Upcoming',
-      category: 'general',
-      priority: 'medium',
-      completed: false,
-    };
-    setTasks([newTask, ...tasks]);
-    setNewTaskTitle('');
-    setShowAddTask(false);
-  };
-
-  const isHealthy = health?.status === 'healthy';
+  const allCrops = farms.flatMap((f) => f.fields?.flatMap((field) => field.crops || []) || []);
 
   return (
-    <div className="space-y-6 pb-12 animate-fadeIn">
-      {/* Farmer Welcome & Primary Location Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-900 border border-emerald-500/20 p-6 sm:p-8">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              AgriNexus Intelligence Engine Active
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Good day, {user?.full_name ? user.full_name : 'Farmer'}! 🌾
-            </h1>
-            <p className="mt-2 text-sm text-slate-300 leading-relaxed">
-              Here is your operational farm overview. Real-time microclimate sensors, satellite rainfall trends, soil nutrient profiles, and scheduled agronomic actions are up to date.
-            </p>
-
-            {/* Farm Selector dropdown if user has farms */}
-            {farms.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-slate-400 flex items-center gap-1 font-medium">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-400" /> Active Farm:
-                </span>
-                <select
-                  value={selectedFarm?.id || ''}
-                  onChange={(e) => {
-                    const f = farms.find((farm) => farm.id === e.target.value);
-                    if (f) setSelectedFarm(f);
-                  }}
-                  className="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500"
-                >
-                  {farms.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} ({f.total_area_hectares ? `${f.total_area_hectares.toFixed(1)} ha` : 'No boundary'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap md:flex-col gap-2.5 shrink-0">
-            {onNavigate && (
-              <>
-                <button
-                  onClick={() => onNavigate('ai-mentor')}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 transition-all"
-                >
-                  <Sparkles className="w-4 h-4 text-purple-200" />
-                  Ask AI Mentor
-                </button>
-                <button
-                  onClick={() => onNavigate('smart-farm-map')}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs rounded-xl flex items-center justify-center gap-2 transition-all"
-                >
-                  <MapPin className="w-4 h-4 text-sky-400" />
-                  Smart Farm Map
-                </button>
-                <button
-                  onClick={() => onNavigate('crop-planning')}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs rounded-xl flex items-center justify-center gap-2 transition-all"
-                >
-                  <Sprout className="w-4 h-4 text-emerald-400" />
-                  Plan Next Crop
-                </button>
-              </>
+    <div className="space-y-6 pb-12 font-sans">
+      {/* 1. Top Bar: Greeting & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-neutral-900 tracking-tight">
+            Welcome back, {user?.full_name ? user.full_name.split(' ')[0] : 'Farmer'}
+          </h2>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-neutral-500">Active Farm:</span>
+            {farms.length > 0 ? (
+              <select
+                value={selectedFarm?.id || ''}
+                onChange={(e) => {
+                  const f = farms.find((farm) => farm.id === e.target.value);
+                  if (f) setSelectedFarm(f);
+                }}
+                className="bg-white border border-neutral-300 text-neutral-900 text-xs font-medium rounded-lg px-2.5 py-1 focus:outline-none focus:border-forest-600"
+              >
+                {farms.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.total_area_hectares ? `${f.total_area_hectares.toFixed(1)} ha` : 'No boundary'})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs font-medium text-neutral-700">Coimbatore Region (Demo)</span>
             )}
           </div>
         </div>
 
-        <div className="absolute right-0 bottom-0 translate-x-12 translate-y-12 opacity-5 pointer-events-none">
-          <Layers className="w-96 h-96 text-emerald-400" />
-        </div>
+        {/* Quick Shortcuts */}
+        {onNavigate && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onNavigate('smart-farm-map')}
+              className="px-3 py-1.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-300 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <MapPin className="w-3.5 h-3.5 text-forest-700" />
+              <span>Map</span>
+            </button>
+            <button
+              onClick={() => onNavigate('ai-mentor')}
+              className="px-3 py-1.5 bg-forest-700 hover:bg-forest-800 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <Sprout className="w-3.5 h-3.5" />
+              <span>AI Mentor</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* 1. Farm Summary Metrics */}
+      {/* 2. Key Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Farms */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registered Farms</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <Tractor className="w-4 h-4" />
-            </div>
+        <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-neutral-500 text-xs font-medium">
+            <span>Farms</span>
+            <Tractor className="w-4 h-4 text-forest-700" />
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white">
-              {farmsLoading ? <Loader2 className="w-5 h-5 animate-spin text-emerald-400" /> : totalFarms}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {isAuthenticated ? `${totalFarms} active holdings` : 'Sign in to sync holdings'}
-            </p>
+          <div className="mt-2 text-2xl font-bold text-neutral-900">
+            {farmsLoading ? <Loader2 className="w-5 h-5 animate-spin text-neutral-400" /> : totalFarms}
           </div>
+          <p className="text-[11px] text-neutral-500 mt-0.5">
+            {isAuthenticated ? 'Active holdings' : 'Sign in to sync'}
+          </p>
         </div>
 
-        {/* Cultivated Area */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Area</span>
-            <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400">
-              <MapPin className="w-4 h-4" />
-            </div>
+        <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-neutral-500 text-xs font-medium">
+            <span>Total Area</span>
+            <MapPin className="w-4 h-4 text-forest-700" />
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white">
-              {totalHectares > 0 ? `${totalHectares.toFixed(1)} ha` : '2.5 ha'}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              ≈ {totalAcres > 0 ? totalAcres.toFixed(1) : '6.2'} acres mapped
-            </p>
+          <div className="mt-2 text-2xl font-bold text-neutral-900">
+            {totalHectares > 0 ? `${totalHectares.toFixed(1)} ha` : '2.5 ha'}
           </div>
+          <p className="text-[11px] text-neutral-500 mt-0.5">
+            ≈ {totalAcres > 0 ? totalAcres.toFixed(1) : '6.2'} acres
+          </p>
         </div>
 
-        {/* Sub-Fields */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sub-Fields</span>
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-              <Layers className="w-4 h-4" />
-            </div>
+        <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-neutral-500 text-xs font-medium">
+            <span>Sub-Fields</span>
+            <Layers className="w-4 h-4 text-forest-700" />
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white">
-              {totalFields > 0 ? totalFields : '3'}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">Zoned irrigation plots</p>
+          <div className="mt-2 text-2xl font-bold text-neutral-900">
+            {totalFields > 0 ? totalFields : '3'}
           </div>
+          <p className="text-[11px] text-neutral-500 mt-0.5">Irrigation plots</p>
         </div>
 
-        {/* Active Crops */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monitored Crops</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-              <Sprout className="w-4 h-4" />
-            </div>
+        <div className="bg-white border border-neutral-200 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-neutral-500 text-xs font-medium">
+            <span>Active Crops</span>
+            <Sprout className="w-4 h-4 text-forest-700" />
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold text-white">
-              {allCrops.length > 0 ? allCrops.length : '2'}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">Under current crop cycle</p>
+          <div className="mt-2 text-2xl font-bold text-neutral-900">
+            {allCrops.length > 0 ? allCrops.length : '2'}
           </div>
+          <p className="text-[11px] text-neutral-500 mt-0.5">In cultivation</p>
         </div>
       </div>
 
-      {/* 2. Environmental Intel: Weather, Rainfall, and Soil Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* 3. Environmental Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Weather Card */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2">
-                <CloudSun className="w-5 h-5 text-amber-400" />
-                <h3 className="font-semibold text-sm text-white">Current Weather</h3>
+                <CloudSun className="w-4 h-4 text-amber-600" />
+                <h3 className="font-semibold text-xs text-neutral-900 uppercase tracking-wide">Weather</h3>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
-                {selectedFarm?.name || 'Local Agro Zone'}
+              <span className="text-[11px] text-neutral-500 font-medium">
+                {selectedFarm?.name || 'Local'}
               </span>
             </div>
 
             {envLoading ? (
-              <div className="py-8 flex justify-center items-center">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+              <div className="py-6 flex justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
               </div>
             ) : weather ? (
-              <div className="mt-4 space-y-3">
+              <div className="mt-3 space-y-3">
                 <div className="flex items-baseline justify-between">
-                  <span className="text-3xl font-extrabold text-white">
+                  <span className="text-2xl font-bold text-neutral-900">
                     {weather.current?.temperature_c !== undefined ? `${weather.current.temperature_c.toFixed(1)}°C` : '28.5°C'}
                   </span>
-                  <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                     {weather.current?.condition || 'Favorable'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-2">
-                  <div className="bg-slate-800/60 p-2 rounded-lg">
-                    <span className="text-slate-400 text-[10px] block">Relative Humidity</span>
-                    <span className="font-semibold text-white">{weather.current?.humidity_percent ?? 65}%</span>
+                <div className="grid grid-cols-2 gap-2 text-xs text-neutral-600">
+                  <div className="bg-neutral-50 p-2 rounded-lg">
+                    <span className="text-neutral-500 text-[10px] block">Humidity</span>
+                    <span className="font-semibold text-neutral-900">{weather.current?.humidity_percent ?? 65}%</span>
                   </div>
-                  <div className="bg-slate-800/60 p-2 rounded-lg">
-                    <span className="text-slate-400 text-[10px] block">Wind Speed</span>
-                    <span className="font-semibold text-white">{weather.current?.wind_speed_kmh ?? 12} km/h</span>
+                  <div className="bg-neutral-50 p-2 rounded-lg">
+                    <span className="text-neutral-500 text-[10px] block">Wind</span>
+                    <span className="font-semibold text-neutral-900">{weather.current?.wind_speed_kmh ?? 12} km/h</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="mt-4 text-xs text-slate-400">Weather data syncing...</div>
+              <div className="mt-3 text-xs text-neutral-400">Syncing weather...</div>
             )}
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Source: Open-Meteo Satellite</span>
+
+          <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-end">
             {onNavigate && (
               <button 
                 onClick={() => onNavigate('farm-analysis')}
-                className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium"
+                className="text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1"
               >
-                Detailed Analysis <ChevronRight className="w-3 h-3" />
+                Detailed Analysis <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         </div>
 
         {/* Rainfall Card */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2">
-                <CloudRain className="w-5 h-5 text-sky-400" />
-                <h3 className="font-semibold text-sm text-white">Rainfall Intelligence</h3>
+                <CloudRain className="w-4 h-4 text-sky-600" />
+                <h3 className="font-semibold text-xs text-neutral-900 uppercase tracking-wide">Rainfall</h3>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800 font-mono">
+              <span className="text-[11px] text-neutral-500 font-medium">
                 {rainfall?.rainfall_trend || 'Normal'}
               </span>
             </div>
 
             {envLoading ? (
-              <div className="py-8 flex justify-center items-center">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+              <div className="py-6 flex justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
               </div>
             ) : rainfall ? (
-              <div className="mt-4 space-y-3">
+              <div className="mt-3 space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-                    <span className="text-slate-400 text-[10px] block">14-Day Past Sum</span>
-                    <span className="text-lg font-bold text-white">
-                      {rainfall.recent_14_day_total_mm?.toFixed(1) ?? '28.4'} <span className="text-xs font-normal text-slate-400">mm</span>
+                  <div className="bg-neutral-50 p-2 rounded-lg">
+                    <span className="text-neutral-500 text-[10px] block">Past 14 Days</span>
+                    <span className="text-sm font-bold text-neutral-900">
+                      {rainfall.recent_14_day_total_mm?.toFixed(1) ?? '28.4'} mm
                     </span>
                   </div>
-                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/50">
-                    <span className="text-slate-400 text-[10px] block">7-Day Forecast</span>
-                    <span className="text-lg font-bold text-sky-400">
-                      {rainfall.forecast_7_day_total_mm?.toFixed(1) ?? '15.2'} <span className="text-xs font-normal text-slate-400">mm</span>
+                  <div className="bg-neutral-50 p-2 rounded-lg">
+                    <span className="text-neutral-500 text-[10px] block">7-Day Forecast</span>
+                    <span className="text-sm font-bold text-sky-700">
+                      {rainfall.forecast_7_day_total_mm?.toFixed(1) ?? '15.2'} mm
                     </span>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-neutral-600 bg-neutral-50 p-2 rounded-lg">
                   {rainfall.forecast_7_day_total_mm && rainfall.forecast_7_day_total_mm > 40
-                    ? '⚠️ Heavy rain expected. Delay fertilizer top-dressing.'
-                    : '✅ Moderate moisture. Safe for spray and field work.'}
+                    ? 'Heavy rain forecast. Hold off fertilizer top-dressing.'
+                    : 'Balanced precipitation forecast.'}
                 </p>
               </div>
             ) : (
-              <div className="mt-4 text-xs text-slate-400">Rainfall telemetry loading...</div>
+              <div className="mt-3 text-xs text-neutral-400">Loading rainfall data...</div>
             )}
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Precipitation Model</span>
+
+          <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-end">
             {onNavigate && (
               <button 
                 onClick={() => onNavigate('irrigation')}
-                className="text-sky-400 hover:text-sky-300 flex items-center gap-1 font-medium"
+                className="text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1"
               >
-                Water Budget <ChevronRight className="w-3 h-3" />
+                Irrigation Calculator <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Soil Summary Card */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+        {/* Soil Health Card */}
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2">
-                <Sprout className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-semibold text-sm text-white">Soil Health Overview</h3>
+                <Sprout className="w-4 h-4 text-forest-700" />
+                <h3 className="font-semibold text-xs text-neutral-900 uppercase tracking-wide">Soil Health</h3>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
-                {soil?.texture_class || 'Sandy Clay Loam'}
+              <span className="text-[11px] text-neutral-500 font-medium">
+                {soil?.texture_class || 'Clay Loam'}
               </span>
             </div>
 
             {envLoading ? (
-              <div className="py-8 flex justify-center items-center">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+              <div className="py-6 flex justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
               </div>
             ) : soil ? (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Soil pH</span>
-                  <span className="font-bold text-white">
-                    {soil.ph?.value?.toFixed(1) ?? '6.5'}{' '}
-                    <span className="text-[10px] font-normal text-emerald-400">(Optimal)</span>
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between text-xs bg-neutral-50 p-2 rounded-lg">
+                  <span className="text-neutral-600">pH Level</span>
+                  <span className="font-bold text-neutral-900">
+                    {soil.ph?.value?.toFixed(1) ?? '6.5'} (Optimal)
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 text-center text-xs pt-1">
-                  <div className="bg-slate-800/60 p-2 rounded-lg">
-                    <span className="text-[10px] text-slate-400 block">N (Nitrogen)</span>
-                    <span className="font-bold text-emerald-400">
-                      {soil.nitrogen_n?.value?.toFixed(0) ?? '180'} <span className="text-[9px] font-normal text-slate-400">kg/ha</span>
+                <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
+                  <div className="bg-neutral-50 p-1.5 rounded-lg">
+                    <span className="text-[10px] text-neutral-500 block">N</span>
+                    <span className="font-bold text-neutral-900 text-xs">
+                      {soil.nitrogen_n?.value?.toFixed(0) ?? '180'}
                     </span>
                   </div>
-                  <div className="bg-slate-800/60 p-2 rounded-lg">
-                    <span className="text-[10px] text-slate-400 block">P (Phos)</span>
-                    <span className="font-bold text-amber-400">
-                      {soil.phosphorus_p?.value?.toFixed(0) ?? '42'} <span className="text-[9px] font-normal text-slate-400">kg/ha</span>
+                  <div className="bg-neutral-50 p-1.5 rounded-lg">
+                    <span className="text-[10px] text-neutral-500 block">P</span>
+                    <span className="font-bold text-neutral-900 text-xs">
+                      {soil.phosphorus_p?.value?.toFixed(0) ?? '42'}
                     </span>
                   </div>
-                  <div className="bg-slate-800/60 p-2 rounded-lg">
-                    <span className="text-[10px] text-slate-400 block">K (Potash)</span>
-                    <span className="font-bold text-sky-400">
-                      {soil.potassium_k?.value?.toFixed(0) ?? '210'} <span className="text-[9px] font-normal text-slate-400">kg/ha</span>
+                  <div className="bg-neutral-50 p-1.5 rounded-lg">
+                    <span className="text-[10px] text-neutral-500 block">K</span>
+                    <span className="font-bold text-neutral-900 text-xs">
+                      {soil.potassium_k?.value?.toFixed(0) ?? '210'}
                     </span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="mt-4 text-xs text-slate-400">ISRIC Soil profile loading...</div>
+              <div className="mt-3 text-xs text-neutral-400">Loading soil data...</div>
             )}
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-            <span>ISRIC SoilGrids v2.0</span>
+
+          <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-end">
             {onNavigate && (
               <button 
                 onClick={() => onNavigate('fertilizer')}
-                className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium"
+                className="text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1"
               >
-                Nutrient Balancer <ChevronRight className="w-3 h-3" />
+                Nutrient Advisor <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* 3. Operational Split: Current Farming Activities & Actionable Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 4. Operations: Activities & Tasks */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Current Farming Activities */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-semibold text-sm text-white">Current Farming Activities</h3>
+                <Activity className="w-4 h-4 text-forest-700" />
+                <h3 className="font-semibold text-xs text-neutral-900 uppercase tracking-wide">Farming Activities</h3>
               </div>
-              <span className="text-xs text-slate-400">Season: Kharif / Rabi Cycle</span>
+              <span className="text-xs text-neutral-500">Current Season</span>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-2">
               {allCrops.length > 0 ? (
                 allCrops.map((c, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 flex items-center justify-between">
+                  <div key={i} className="p-3 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">{c.name}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Stage: <span className="text-emerald-400 font-medium">Vegetative Growth</span> • Planted:{' '}
-                        {c.planting_date || 'Recent cycle'}
+                      <h4 className="text-xs font-bold text-neutral-900">{c.name}</h4>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        Planted: {c.planting_date || 'Active season'}
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-semibold border border-emerald-100">
                       Active
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="space-y-2.5">
-                  <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 flex items-center justify-between">
+                <>
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">Rice (Paddy - ADT 45)</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Field: <span className="text-slate-300">North Parcel (1.2 ha)</span> • Stage:{' '}
-                        <span className="text-emerald-400 font-medium">Active Tillering</span>
+                      <h4 className="text-xs font-bold text-neutral-900">Rice (Paddy - ADT 45)</h4>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        North Parcel (1.2 ha) • Active Tillering
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-semibold border border-emerald-100">
                       Healthy
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 flex items-center justify-between">
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">Maize / Corn</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Field: <span className="text-slate-300">South Drip Zone (0.8 ha)</span> • Stage:{' '}
-                        <span className="text-amber-400 font-medium">Flowering / Tasseling</span>
+                      <h4 className="text-xs font-bold text-neutral-900">Maize / Sweet Corn</h4>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">
+                        South Drip Zone (0.8 ha) • Flowering
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
+                    <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-100">
                       Irrigation Due
                     </span>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-            <span>Manage fields and registered crops in My Farms</span>
+          <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-end">
             {onNavigate && (
               <button
                 onClick={() => onNavigate('my-farms')}
-                className="text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1"
+                className="text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1"
               >
-                Go to My Farms <ChevronRight className="w-3.5 h-3.5" />
+                Manage Farms <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Upcoming Tasks & Farmer To-Do */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+        {/* Upcoming Tasks */}
+        <div className="bg-white border border-neutral-200 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-semibold text-sm text-white">Upcoming Farm Tasks</h3>
+                <CheckSquare className="w-4 h-4 text-forest-700" />
+                <h3 className="font-semibold text-xs text-neutral-900 uppercase tracking-wide">Upcoming Tasks</h3>
               </div>
-              <button
-                onClick={() => setShowAddTask(!showAddTask)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-indigo-950/60 px-2 py-1 rounded-lg border border-indigo-800/60 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Task
-              </button>
+              <div className="flex items-center gap-2">
+                {onNavigate && (
+                  <button
+                    onClick={() => onNavigate('smart-farming-calendar')}
+                    className="text-xs text-forest-700 hover:text-forest-900 font-medium flex items-center gap-1 bg-forest-50 hover:bg-forest-100 px-2 py-0.5 rounded-lg border border-forest-200 transition-colors"
+                    title="Open full interactive Smart Farming Calendar"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Full Calendar
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowAddTask(!showAddTask)}
+                  className="text-xs text-forest-700 hover:text-forest-900 font-medium flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Task
+                </button>
+              </div>
             </div>
 
             {/* Quick Add Form */}
             {showAddTask && (
-              <form onSubmit={handleAddTask} className="mt-3 flex gap-2">
+              <form onSubmit={handleAddTask} className="mt-2.5 flex gap-2">
                 <input
                   type="text"
-                  placeholder="e.g. Clean drip filters, check pump motor..."
+                  placeholder="Task title..."
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+                  className="flex-1 bg-neutral-50 border border-neutral-200 text-xs text-neutral-900 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-forest-600"
                 />
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  className="bg-forest-700 hover:bg-forest-800 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  Save
+                  Add
                 </button>
               </form>
             )}
 
+            {/* Task Error Banners */}
+            {taskSyncError && (
+              <div className="mt-2.5 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span className="truncate">{taskSyncError}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={loadTasks}
+                    disabled={tasksLoading}
+                    className="text-[11px] font-medium text-rose-700 hover:text-rose-900 underline flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <RotateCw className={`w-3 h-3 ${tasksLoading ? 'animate-spin' : ''}`} />
+                    Retry
+                  </button>
+                  <button
+                    onClick={() => setTaskSyncError(null)}
+                    className="text-rose-400 hover:text-rose-600 p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {taskActionError && (
+              <div className="mt-2 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span className="truncate">{taskActionError}</span>
+                </div>
+                <button
+                  onClick={() => setTaskActionError(null)}
+                  className="text-rose-400 hover:text-rose-600 p-0.5 shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Tasks List */}
-            <div className="mt-3 space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div className="mt-2.5 space-y-1.5 max-h-52 overflow-y-auto pr-1">
+              {tasksLoading && (
+                <div className="flex items-center justify-center py-4 text-neutral-400 gap-2 text-xs">
+                  <Loader2 className="w-4 h-4 animate-spin text-forest-700" />
+                  <span>Syncing tasks...</span>
+                </div>
+              )}
+              {!tasksLoading && !taskSyncError && tasks.length === 0 && (
+                <div className="text-center py-6 text-neutral-400 text-xs">
+                  <CheckSquare className="w-5 h-5 mx-auto mb-1.5 opacity-40 text-neutral-400" />
+                  <p className="font-medium text-neutral-600">No tasks found</p>
+                  <p className="text-[11px] text-neutral-400 mt-0.5">
+                    {selectedFarm ? `No tasks scheduled for ${selectedFarm.name}.` : 'Click "+ Add Task" to schedule your first activity.'}
+                  </p>
+                </div>
+              )}
               {tasks.map((task) => (
                 <div
                   key={task.id}
                   onClick={() => handleToggleTask(task.id)}
-                  className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
+                  className={`group p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
                     task.completed
-                      ? 'bg-slate-900/60 border-slate-800/60 opacity-60'
-                      : 'bg-slate-800/40 border-slate-700/60 hover:bg-slate-800'
+                      ? 'bg-neutral-50/60 border-neutral-100 opacity-60'
+                      : 'bg-neutral-50 border-neutral-100 hover:border-neutral-200'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
                     {task.completed ? (
-                      <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckSquare className="w-3.5 h-3.5 text-forest-700 shrink-0" />
                     ) : (
-                      <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                      <Square className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                     )}
-                    <div>
-                      <p className={`text-xs font-medium ${task.completed ? 'line-through text-slate-400' : 'text-white'}`}>
+                    <div className="min-w-0">
+                      <p className={`text-xs truncate ${task.completed ? 'line-through text-neutral-400' : 'text-neutral-800 font-medium'}`}>
                         {task.title}
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-500" /> {task.dueDate}
+                      <p className="text-[10px] text-neutral-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" /> {task.due_date || task.dueDate || 'Scheduled'}
                       </p>
                     </div>
                   </div>
-                  {task.priority === 'high' && !task.completed && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-800 font-medium">
-                      High Priority
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {task.priority === 'high' && !task.completed && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-medium">
+                        High
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => openEditModal(task, e)}
+                      title="Edit task"
+                      className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-forest-700 transition-opacity p-0.5 rounded hover:bg-neutral-200/50"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteTask(task.id, e)}
+                      disabled={deletingTaskId === task.id}
+                      title="Delete task"
+                      className="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-rose-600 transition-opacity p-0.5 rounded hover:bg-neutral-200/50 disabled:opacity-50"
+                    >
+                      {deletingTaskId === task.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-rose-500" />
+                      ) : (
+                        <Trash2 className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>{tasks.filter((t) => !t.completed).length} pending actions</span>
-            <span className="text-emerald-400 font-medium">Synced with AI Mentor planner</span>
+          <div className="mt-4 pt-3 border-t border-neutral-100 text-[11px] text-neutral-500">
+            {tasks.filter((t) => !t.completed).length} pending actions
           </div>
         </div>
       </div>
 
-      {/* 4. Important Farm Insights & Alerts */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <h3 className="font-semibold text-sm text-white">Important Farm Insights & Actionable Advisories</h3>
-          </div>
-          <span className="text-xs text-slate-400">Live AI Telemetry</span>
-        </div>
+      {/* 5. Farm Advisories */}
+      <div className="bg-white border border-neutral-200 rounded-2xl p-5">
+        <h3 className="font-semibold text-xs text-neutral-900 uppercase tracking-wide pb-3 border-b border-neutral-100">
+          Farm Advisories
+        </h3>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Irrigation Deficit Insight */}
-          <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Irrigation Deficit */}
+          <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-100 flex flex-col justify-between">
             <div>
-              <div className="flex items-center gap-2 text-cyan-400 text-xs font-semibold mb-1.5">
-                <Droplets className="w-4 h-4" /> Irrigation Advisory
+              <div className="flex items-center gap-1.5 text-neutral-900 text-xs font-semibold mb-1">
+                <Droplets className="w-3.5 h-3.5 text-sky-600" /> Irrigation
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Daily evapotranspiration (ETc) is estimated at <strong>4.2 mm/day</strong>. With 15.2 mm forecast rain, net supplemental drip irrigation needed is <strong>2.8 hrs/day</strong>.
+              <p className="text-xs text-neutral-600 leading-relaxed">
+                ETc estimated at 4.2 mm/day. Net supplemental drip needed is 2.8 hrs/day.
               </p>
             </div>
             {onNavigate && (
               <button
                 onClick={() => onNavigate('irrigation')}
-                className="mt-3 text-xs text-cyan-400 hover:text-cyan-300 font-medium inline-flex items-center gap-1 self-start"
+                className="mt-2.5 text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1 self-start"
               >
-                Configure Irrigation <ChevronRight className="w-3 h-3" />
+                Configure <ArrowUpRight className="w-3 h-3" />
               </button>
             )}
           </div>
 
-          {/* Fertilizer Nutrient Insight */}
-          <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+          {/* Fertilizer Nutrient */}
+          <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-100 flex flex-col justify-between">
             <div>
-              <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold mb-1.5">
-                <Sprout className="w-4 h-4" /> Nutrient Balancing
+              <div className="flex items-center gap-1.5 text-neutral-900 text-xs font-semibold mb-1">
+                <Sprout className="w-3.5 h-3.5 text-forest-700" /> Nutrients
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Soil Nitrogen is currently moderate (180 kg/ha). A secondary top-dress of <strong>45 kg Urea / ha</strong> is recommended during active tillering to sustain optimal vigor.
+              <p className="text-xs text-neutral-600 leading-relaxed">
+                Soil Nitrogen moderate (180 kg/ha). Secondary top-dress of 45 kg Urea/ha recommended.
               </p>
             </div>
             {onNavigate && (
               <button
                 onClick={() => onNavigate('fertilizer')}
-                className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 font-medium inline-flex items-center gap-1 self-start"
+                className="mt-2.5 text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1 self-start"
               >
-                Calculate Fertilizer <ChevronRight className="w-3 h-3" />
+                Calculate <ArrowUpRight className="w-3 h-3" />
               </button>
             )}
           </div>
 
-          {/* Pest / Disease Scout Insight */}
-          <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-3.5 flex flex-col justify-between">
+          {/* Disease Prevention */}
+          <div className="p-3.5 rounded-xl bg-neutral-50 border border-neutral-100 flex flex-col justify-between">
             <div>
-              <div className="flex items-center gap-2 text-rose-400 text-xs font-semibold mb-1.5">
-                <ShieldAlert className="w-4 h-4" /> Disease Prevention
+              <div className="flex items-center gap-1.5 text-neutral-900 text-xs font-semibold mb-1">
+                <ShieldAlert className="w-3.5 h-3.5 text-rose-600" /> Disease Alert
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Humid microclimate (82%) increases risk of fungal leaf spot in denser canopies. Take a photo of suspect leaves with our computer-vision scanner for instant diagnostics.
+              <p className="text-xs text-neutral-600 leading-relaxed">
+                Humidity at 82% increases fungal risk. Inspect lower foliage for early lesions.
               </p>
             </div>
             {onNavigate && (
               <button
                 onClick={() => onNavigate('disease-detection')}
-                className="mt-3 text-xs text-rose-400 hover:text-rose-300 font-medium inline-flex items-center gap-1 self-start"
+                className="mt-2.5 text-xs text-forest-700 hover:text-forest-900 font-medium inline-flex items-center gap-1 self-start"
               >
-                Scan Leaf Photo <ChevronRight className="w-3 h-3" />
+                Scan Leaf <ArrowUpRight className="w-3 h-3" />
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* 5. Collapsible System Infrastructure & Diagnostics (Phase 0 Foundation Preservation) */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden">
-        <button
-          onClick={() => setShowDiagnostics(!showDiagnostics)}
-          className="w-full p-4 flex items-center justify-between text-left text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-colors"
-        >
-          <div className="flex items-center gap-2 font-medium">
-            <Server className="w-4 h-4 text-emerald-400" />
-            <span>Underlying System Diagnostics (FastAPI • PostGIS • Health Check)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${isHealthy ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'}`}>
-              {health ? health.status.toUpperCase() : 'CHECKING'}
-            </span>
-            <ChevronDown className={`w-4 h-4 transition-transform ${showDiagnostics ? 'rotate-180' : ''}`} />
-          </div>
-        </button>
-
-        {showDiagnostics && (
-          <div className="p-5 border-t border-slate-800/80 bg-slate-950/60 space-y-4">
-            {healthError && (
-              <div className="p-3 bg-rose-950/40 border border-rose-800 rounded-lg text-xs text-rose-300">
-                Diagnostics Error: {healthError}
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white border border-neutral-200 rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <div className="flex items-center gap-2 text-forest-800 font-semibold text-sm">
+                <Pencil className="w-4 h-4 text-forest-700" />
+                <span>Edit Farm Task</span>
               </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
-                <span className="text-[10px] text-slate-400 uppercase font-mono">FastAPI Version</span>
-                <p className="text-sm font-bold text-white mt-1">v{health?.version || '0.1.0'}</p>
-                <p className="text-xs text-slate-400 mt-1">Response latency: {responseTimeMs} ms</p>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
-                <span className="text-[10px] text-slate-400 uppercase font-mono">PostGIS Geometry</span>
-                <p className="text-sm font-bold text-emerald-400 mt-1">
-                  {health?.database.postgis_installed ? 'Installed & Verified' : 'Standard PostgreSQL'}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Version: {health?.database.postgis_version || 'PostGIS 3.4+'}
-                </p>
-              </div>
-              <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-mono">Documentation</span>
-                  <p className="text-xs text-slate-300 mt-1">Interactive OpenAPI Swagger UI</p>
-                </div>
-                <a
-                  href="http://localhost:8000/docs"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium"
-                >
-                  <FileText className="w-3.5 h-3.5" /> Open /docs <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-            <div className="flex justify-end">
               <button
-                onClick={onRefreshHealth}
-                disabled={healthLoading}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg flex items-center gap-1.5 border border-slate-700 transition-colors"
+                type="button"
+                onClick={() => {
+                  if (!isUpdatingTask) setEditingTask(null);
+                }}
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${healthLoading ? 'animate-spin' : ''}`} /> Re-run Diagnostics
+                <X className="w-4 h-4" />
               </button>
             </div>
+
+            {editError && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateTask} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  Task Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:border-forest-600"
+                  placeholder="e.g. Irrigate South Field"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    Due Date / Time
+                  </label>
+                  <input
+                    type="text"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:border-forest-600"
+                    placeholder="e.g. Today, 06:00 AM"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value as 'high' | 'medium' | 'low')}
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-xs text-neutral-900 focus:outline-none focus:border-forest-600"
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  Category
+                </label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value as 'irrigation' | 'fertilizer' | 'scouting' | 'general')}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-2 text-xs text-neutral-900 focus:outline-none focus:border-forest-600"
+                >
+                  <option value="general">General</option>
+                  <option value="irrigation">Irrigation</option>
+                  <option value="fertilizer">Fertilizer</option>
+                  <option value="scouting">Scouting</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                <button
+                  type="button"
+                  disabled={isUpdatingTask}
+                  onClick={() => setEditingTask(null)}
+                  className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingTask}
+                  className="px-3.5 py-1.5 rounded-lg bg-forest-700 hover:bg-forest-800 text-white text-xs font-medium flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  {isUpdatingTask && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
+export default Dashboard;
